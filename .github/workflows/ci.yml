@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Lint, typecheck, test, build (Node ${{ matrix.node-version }})
+    name: Lint, typecheck, build (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -41,8 +41,36 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
 
+      # vitest 5 requires Node >=22.12, so tests only run on Node 22+.
+      # The published package still supports Node 20 (engines.node ">=20");
+      # lint, typecheck, and build above keep verifying Node 20 compatibility.
       - name: Test with coverage
+        if: matrix.node-version != 20
         run: pnpm run test:coverage
 
       - name: Build
         run: pnpm run build
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Fail only on high/critical advisories. The package ships zero runtime
+      # deps, so low/moderate dev-tooling noise should not break CI.
+      - name: Audit dependencies
+        run: pnpm audit --audit-level high
