@@ -9,13 +9,17 @@ permissions:
   contents: read
 
 jobs:
+  # Dev-tooling checks. The toolchain (vitest 5) requires Node >= 22.12, so
+  # lint/typecheck/test/build run on Node 22 and 24. The published package still
+  # supports Node 20 — that is verified separately by the `node20-smoke` job,
+  # which exercises the built artifact with zero dev dependencies installed.
   build:
-    name: Lint, typecheck, build (Node ${{ matrix.node-version }})
+    name: Lint, typecheck, test, build (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        node-version: [20, 22]
+        node-version: [22, 24]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -41,15 +45,51 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
 
-      # vitest 5 requires Node >=22.12, so tests only run on Node 22+.
-      # The published package still supports Node 20 (engines.node ">=20");
-      # lint, typecheck, and build above keep verifying Node 20 compatibility.
       - name: Test with coverage
-        if: matrix.node-version != 20
         run: pnpm run test:coverage
 
       - name: Build
         run: pnpm run build
+
+  # Verifies the published artifact loads and works on Node 20 (engines.node is
+  # ">=20"). It builds on Node 22, then imports the ESM and CJS entry points on
+  # Node 20 WITHOUT installing dev dependencies (vitest 5 requires Node >= 22,
+  # so a full install would fail on Node 20 — but the shipped package has zero
+  # runtime deps, so the built dist/ loads cleanly).
+  node20-smoke:
+    name: Node 20 artifact smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js 22 (for building)
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Set up Node.js 20 (for the smoke test)
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20
+
+      - name: Smoke-test the built package on Node 20
+        run: |
+          node --version
+          # CJS entry: require the build and assert the public API is present.
+          node -e "const m = require('./dist/index.cjs'); if (typeof m.WhatsAppClient !== 'function') { throw new Error('CJS: WhatsAppClient missing'); } new m.WhatsAppClient({ accessToken: 't', phoneNumberId: 'p' }); console.log('CJS load OK on Node', process.version);"
+          # ESM entry: dynamic import and the same assertion.
+          node --input-type=module -e "import('./dist/index.js').then((m) => { if (typeof m.WhatsAppClient !== 'function') { throw new Error('ESM: WhatsAppClient missing'); } new m.WhatsAppClient({ accessToken: 't', phoneNumberId: 'p' }); console.log('ESM load OK on Node', process.version); });"
 
   audit:
     name: Dependency audit
