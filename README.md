@@ -6,7 +6,7 @@
 
 TypeScript SDK for the [WhatsApp Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api) — the Meta-hosted WhatsApp Business Platform. It aims to provide a typed, zero-runtime-dependency client built on the native `fetch` and `FormData` available in Node 20+.
 
-> **Status: active development (foundation phase).** The project currently ships tooling, CI/CD, and a minimal client skeleton. The messaging, template, media, and webhook surfaces are not implemented yet. APIs may change before the first stable release.
+> **Status: active development.** Outbound messaging is implemented: text, media (image, video, audio, document, sticker), location, contacts, templates, interactive buttons and lists, reactions, and mark-as-read. Webhooks, media upload, and template management are not implemented yet. APIs may change before the first stable release.
 
 ## Install
 
@@ -23,11 +23,27 @@ import { WhatsAppClient } from '@solvejet/whatsapp-cloud-api';
 
 const client = new WhatsAppClient({
   accessToken: process.env.WHATSAPP_ACCESS_TOKEN!,
-  phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
+  phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID!,
 });
 
-console.log(client.getApiVersion()); // "v23.0"
-console.log(client.getBaseUrl()); // "https://graph.facebook.com/v23.0"
+// Send a plain text message.
+const res = await client.messages.sendText('15551234567', 'Hello from the SDK');
+console.log(res.messages[0]?.id); // the WhatsApp message ID (WAMID)
+
+// Send a pre-approved template.
+await client.messages.sendTemplate('15551234567', {
+  name: 'hello_world',
+  language: { code: 'en_US' },
+});
+
+// Send an interactive message with up to three reply buttons.
+await client.messages.sendInteractiveButtons('15551234567', {
+  body: 'Did this answer your question?',
+  buttons: [
+    { id: 'yes', title: 'Yes' },
+    { id: 'no', title: 'No' },
+  ],
+});
 ```
 
 ## Roadmap

@@ -8,6 +8,7 @@
  */
 
 import { HttpClient } from './http.js';
+import { MessagesResource } from './resources/messages.js';
 import type { RequestOptions } from './types/common.js';
 
 export {
@@ -20,6 +21,30 @@ export {
 } from './errors.js';
 export type { WhatsAppApiErrorFields } from './errors.js';
 export type { GraphErrorEnvelope, HttpMethod, RequestOptions } from './types/common.js';
+
+export { MessagesResource } from './resources/messages.js';
+export type {
+  CaptionedMedia,
+  Contact,
+  ContactEmail,
+  ContactName,
+  ContactPhone,
+  DocumentMedia,
+  InteractiveButtonsPayload,
+  InteractiveListPayload,
+  InteractiveListRow,
+  InteractiveListSection,
+  InteractiveReplyButton,
+  InteractiveTextHeader,
+  LocationPayload,
+  MediaSource,
+  ReactionPayload,
+  SendMessageResponse,
+  TemplateComponent,
+  TemplateParameter,
+  TemplatePayload,
+  TextMessageOptions,
+} from './types/messages.js';
 
 /** Default per-attempt request timeout in milliseconds. */
 export const DEFAULT_TIMEOUT_MS = 30000;
@@ -67,6 +92,7 @@ const trimTrailingSlashes = (value: string): string => value.replace(/\/+$/, '')
 export class WhatsAppClient {
   private readonly config: ResolvedConfig;
   private readonly http: HttpClient;
+  private messagesResource?: MessagesResource;
 
   constructor(config: WhatsAppClientConfig) {
     if (!config.accessToken) {
@@ -101,6 +127,19 @@ export class WhatsAppClient {
    */
   request<T>(options: RequestOptions): Promise<T> {
     return this.http.request<T>(options);
+  }
+
+  /**
+   * Typed outbound Messages API. Lazily instantiated on first access and
+   * reused thereafter, bound to the internal request path and the configured
+   * default phone number ID.
+   */
+  get messages(): MessagesResource {
+    this.messagesResource ??= new MessagesResource(
+      (options) => this.http.request(options),
+      () => this.config.phoneNumberId,
+    );
+    return this.messagesResource;
   }
 
   /** Returns the configured phone number ID, if any. */
