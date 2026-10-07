@@ -61,21 +61,25 @@ jobs:
       - name: Update npm
         run: npm install -g npm@latest
 
-      # setup-node writes an .npmrc with `_authToken=${NODE_AUTH_TOKEN}`. With no
-      # token set, that line makes npm try (and fail) token auth instead of OIDC.
-      # Remove any auth-token line so npm uses the OIDC id-token exchange.
-      - name: Remove token placeholder from .npmrc
-        run: |
-          for f in "$NPM_CONFIG_USERCONFIG" "$HOME/.npmrc"; do
-            if [ -n "$f" ] && [ -f "$f" ]; then
-              echo "Scrubbing _authToken from $f"
-              sed -i '/_authToken/d' "$f" || true
-            fi
-          done
-
-      # Publish with the OIDC-capable npm. --access public for the scoped
-      # package; --provenance records a build attestation.
-      - name: Publish
+      # Scrub the empty `_authToken` placeholder AND publish in one step so no
+      # cross-step env/file regeneration can re-introduce it. setup-node writes
+      # `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` into the userconfig
+      # .npmrc; with no token it expands to empty, which npm treats as
+      # "auth configured" and skips the OIDC exchange (ENEEDAUTH/E404). Removing
+      # every `_authToken`/`always-auth` line from both the userconfig and the
+      # project .npmrc lets npm detect the OIDC id-token and run the exchange.
+      # Ref: https://github.com/npm/documentation/issues/1960
+      - name: Publish (OIDC)
         run: |
           echo "npm version: $(npm --version)"
-          npm publish --provenance --access public
+          for f in "${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}" "$HOME/.npmrc" "$PWD/.npmrc"; do
+            if [ -f "$f" ]; then
+              echo "Scrubbing auth lines from $f"
+              sed -i '/_authToken/d;/always-auth/d' "$f" || true
+            fi
+          done
+          # Confirm the OIDC request env is present (set by `id-token: write`).
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "::warning::ACTIONS_ID_TOKEN_REQUEST_URL is not set — OIDC will not run."
+          fi
+          npm publish --provenance --access public --registry=https://registry.npmjs.org/
