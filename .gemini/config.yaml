@@ -1,0 +1,22 @@
+# Gemini Code Assist configuration
+# Schema: https://developers.google.com/gemini-code-assist/docs/customize-gemini-behavior-github
+have_fun: false
+
+code_review:
+  disable: false
+  # Only surface meaningful issues; skip minor nits on an early-stage SDK.
+  comment_severity_threshold: MEDIUM
+  max_review_comments: -1
+  pull_request_opened:
+    help: false
+    summary: true
+    code_review: true
+    include_drafts: false
+
+# Generated output, lockfiles, and docs don't need review.
+ignore_patterns:
+  - 'dist/**'
+  - 'node_modules/**'
+  - 'pnpm-lock.yaml'
+  - 'coverage/**'
+  - '**/*.map'
