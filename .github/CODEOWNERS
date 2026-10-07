@@ -1,0 +1,9 @@
+# Code owners for @solvejet/whatsapp-cloud-api
+# These owners are requested for review automatically when a PR
+# changes matching files. See https://docs.github.com/articles/about-code-owners
+#
+# Owners are requested for review automatically when a PR changes matching
+# files. If you create a @solvejet/maintainers team, swap the owner below to it.
+
+# Default owner for everything in the repo
+*                       @solvejet-team
