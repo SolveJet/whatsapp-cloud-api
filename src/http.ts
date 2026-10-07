@@ -9,6 +9,7 @@
 
 import {
   WhatsAppApiError,
+  WhatsAppRateLimitError,
   WhatsAppRequestError,
   WhatsAppValidationError,
   errorFromResponse,
@@ -189,6 +190,9 @@ export class HttpClient {
     const retryAfterMs = parseRetryAfter(response.headers.get('retry-after'));
     if (retryAfterMs !== undefined) {
       retryAfterByError.set(apiError, retryAfterMs);
+      if (apiError instanceof WhatsAppRateLimitError) {
+        apiError.retryAfterMs = retryAfterMs;
+      }
     }
     throw apiError;
   }

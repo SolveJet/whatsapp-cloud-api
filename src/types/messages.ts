@@ -23,6 +23,18 @@ export interface TextMessageOptions {
 }
 
 /**
+ * Common trailing options accepted by every sender.
+ *
+ * When `replyToMessageId` is set, the request body carries a root-level
+ * `context: { message_id }` (a sibling of `type`), threading the outbound
+ * message as a reply to a previously received message.
+ */
+export interface SendOptions {
+  /** WAMID of the message this send should reply to. */
+  replyToMessageId?: string;
+}
+
+/**
  * Reference to a media asset, either a previously uploaded media `id` or a
  * publicly reachable `link`. Exactly one of the two is expected.
  */
@@ -46,15 +58,16 @@ export interface LocationPayload {
 }
 
 /**
- * Structured name for a contact card.
- *
- * `formatted_name` is required by the API; the component name parts are a
- * documented subset — `middle_name`, `suffix`, and `prefix` are omitted here.
+ * Structured name for a contact card. `formatted_name` is required by the API;
+ * the remaining component name parts are optional.
  */
 export interface ContactName {
   formatted_name: string;
   first_name?: string;
   last_name?: string;
+  middle_name?: string;
+  suffix?: string;
+  prefix?: string;
 }
 
 /** A single phone entry on a contact card. */
@@ -70,14 +83,40 @@ export interface ContactEmail {
   type?: string;
 }
 
-/**
- * A contact card. This is a documented subset of the full contacts object;
- * `addresses`, `org`, `urls`, and `birthday` are intentionally omitted.
- */
+/** A single postal address entry on a contact card. */
+export interface ContactAddress {
+  street?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  country?: string;
+  country_code?: string;
+  type?: string;
+}
+
+/** Organization details on a contact card. */
+export interface ContactOrg {
+  company?: string;
+  department?: string;
+  title?: string;
+}
+
+/** A single URL entry on a contact card. */
+export interface ContactUrl {
+  url?: string;
+  type?: string;
+}
+
+/** A contact card. */
 export interface Contact {
   name: ContactName;
   phones?: ContactPhone[];
   emails?: ContactEmail[];
+  addresses?: ContactAddress[];
+  org?: ContactOrg;
+  urls?: ContactUrl[];
+  /** Birthday in `YYYY-MM-DD` format. */
+  birthday?: string;
 }
 
 /** A single parameter inside a template component. */
@@ -115,11 +154,25 @@ export interface InteractiveReplyButton {
   reply: { id: string; title: string };
 }
 
-/** Header for an interactive message. Only the text header is modeled here. */
+/** Text header for an interactive message. */
 export interface InteractiveTextHeader {
   type: 'text';
   text: string;
 }
+
+/** Media header for an interactive message (image, video, or document). */
+export interface InteractiveMediaHeader {
+  type: 'image' | 'video' | 'document';
+  image?: MediaSource;
+  video?: MediaSource;
+  document?: MediaSource;
+}
+
+/**
+ * Header accepted by interactive senders. A plain string is treated as a text
+ * header; a structured object may be a text or media header.
+ */
+export type InteractiveHeader = string | InteractiveTextHeader | InteractiveMediaHeader;
 
 /** Options for {@link MessagesResource.sendInteractiveButtons}. */
 export interface InteractiveButtonsPayload {
@@ -127,8 +180,8 @@ export interface InteractiveButtonsPayload {
   body: string;
   /** Up to three reply buttons. */
   buttons: { id: string; title: string }[];
-  /** Optional text header. */
-  header?: string;
+  /** Optional header: a plain string (text) or a structured text/media header. */
+  header?: InteractiveHeader;
   /** Optional footer text. */
   footer?: string;
 }
@@ -154,8 +207,8 @@ export interface InteractiveListPayload {
   button: string;
   /** Grouped selectable rows. */
   sections: InteractiveListSection[];
-  /** Optional text header. */
-  header?: string;
+  /** Optional header: a plain string (text) or a structured text/media header. */
+  header?: InteractiveHeader;
   /** Optional footer text. */
   footer?: string;
 }
@@ -166,4 +219,80 @@ export interface ReactionPayload {
   messageId: string;
   /** The emoji to apply. An empty string removes a previously set reaction. */
   emoji: string;
+}
+
+/** Options for {@link MessagesResource.sendInteractiveCtaUrl}. */
+export interface CtaUrlPayload {
+  /** Body text shown above the call-to-action button. */
+  body: string;
+  /** Visible label of the call-to-action button. */
+  displayText: string;
+  /** URL the button opens. */
+  url: string;
+  /** Optional header: a plain string (text) or a structured text/media header. */
+  header?: InteractiveHeader;
+  /** Optional footer text. */
+  footer?: string;
+}
+
+/** Options for {@link MessagesResource.sendInteractiveFlow}. */
+export interface FlowPayload {
+  /** Body text shown above the flow button. */
+  body: string;
+  /** Visible label of the button that opens the flow. */
+  flowCta: string;
+  /** Opaque token echoed back on flow completion. */
+  flowToken?: string;
+  /** Identifier of the published flow. */
+  flowId?: string;
+  /** Name of the published flow (alternative to `flowId`). */
+  flowName?: string;
+  /** Flow action, e.g. `navigate` or `data_exchange`. */
+  flowAction?: string;
+  /** Payload passed to the first screen when `flowAction` is `navigate`. */
+  flowActionPayload?: Record<string, unknown>;
+  /** Flow mode, e.g. `draft` or `published`. */
+  mode?: string;
+  /** Optional header: a plain string (text) or a structured text/media header. */
+  header?: InteractiveHeader;
+  /** Optional footer text. */
+  footer?: string;
+}
+
+/** Options for {@link MessagesResource.sendLocationRequest}. */
+export interface LocationRequestPayload {
+  /** Body text shown above the share-location button. */
+  body: string;
+}
+
+/** Options for {@link MessagesResource.sendProduct}. */
+export interface ProductPayload {
+  /** Catalog that the product belongs to. */
+  catalogId: string;
+  /** Retailer-defined identifier of the product. */
+  productRetailerId: string;
+  /** Optional body text. */
+  body?: string;
+  /** Optional footer text. */
+  footer?: string;
+}
+
+/** A grouping of products within an interactive product list. */
+export interface ProductSection {
+  title?: string;
+  productItems: { productRetailerId: string }[];
+}
+
+/** Options for {@link MessagesResource.sendProductList}. */
+export interface ProductListPayload {
+  /** Catalog that the products belong to. */
+  catalogId: string;
+  /** Required text header shown above the list. */
+  headerText: string;
+  /** Body text shown above the list. */
+  body: string;
+  /** Grouped product sections. */
+  sections: ProductSection[];
+  /** Optional footer text. */
+  footer?: string;
 }
