@@ -16,6 +16,8 @@ export {
   WhatsAppApiError,
   WhatsAppAuthenticationError,
   WhatsAppError,
+  WhatsAppRateLimitError,
+  WhatsAppReEngagementError,
   WhatsAppRequestError,
   WhatsAppValidationError,
   errorFromResponse,

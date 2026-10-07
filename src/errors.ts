@@ -72,6 +72,25 @@ export class WhatsAppAuthenticationError extends WhatsAppApiError {
   }
 }
 
+/** Thrown for rate-limit/throttling failures (HTTP 429 or rate-limit codes). */
+export class WhatsAppRateLimitError extends WhatsAppApiError {
+  /** Server-advised wait before retrying, in milliseconds, when available. */
+  retryAfterMs?: number;
+
+  constructor(message: string, fields: WhatsAppApiErrorFields, options?: { cause?: unknown }) {
+    super(message, fields, options);
+    this.name = 'WhatsAppRateLimitError';
+  }
+}
+
+/** Thrown when messaging is blocked by the 24-hour customer service window. */
+export class WhatsAppReEngagementError extends WhatsAppApiError {
+  constructor(message: string, fields: WhatsAppApiErrorFields, options?: { cause?: unknown }) {
+    super(message, fields, options);
+    this.name = 'WhatsAppReEngagementError';
+  }
+}
+
 /** Thrown for network, abort, or timeout failures before a response is received. */
 export class WhatsAppRequestError extends WhatsAppError {
   /** True when the failure was caused by the client-side timeout. */
@@ -99,6 +118,38 @@ const AUTH_ERROR_CODES = new Set<number>([0, 190]);
 const isAuthError = (httpStatus: number, code: number): boolean =>
   httpStatus === 401 || httpStatus === 403 || AUTH_ERROR_CODES.has(code);
 
+/** Graph error codes that indicate a rate-limit/throttling condition. */
+const RATE_LIMIT_ERROR_CODES = new Set<number>([130429, 131056, 133016]);
+
+/** Graph error code for messaging outside the 24-hour re-engagement window. */
+const RE_ENGAGEMENT_ERROR_CODE = 131047;
+
+/** True when the status/code pair indicates a rate-limit/throttling failure. */
+const isRateLimitError = (httpStatus: number, code: number): boolean =>
+  httpStatus === 429 || RATE_LIMIT_ERROR_CODES.has(code);
+
+/** True when the code indicates a re-engagement (24-hour window) failure. */
+const isReEngagementError = (code: number): boolean => code === RE_ENGAGEMENT_ERROR_CODE;
+
+/** Selects the typed error class for a status/code pair, in priority order. */
+const selectApiError = (
+  httpStatus: number,
+  code: number,
+  message: string,
+  fields: WhatsAppApiErrorFields,
+): WhatsAppApiError => {
+  if (isAuthError(httpStatus, code)) {
+    return new WhatsAppAuthenticationError(message, fields);
+  }
+  if (isRateLimitError(httpStatus, code)) {
+    return new WhatsAppRateLimitError(message, fields);
+  }
+  if (isReEngagementError(code)) {
+    return new WhatsAppReEngagementError(message, fields);
+  }
+  return new WhatsAppApiError(message, fields);
+};
+
 /**
  * Builds a {@link WhatsAppApiError} (or {@link WhatsAppAuthenticationError}) from a
  * non-2xx response. The envelope is used when parseable; otherwise `bodyText` and
@@ -120,9 +171,7 @@ export const errorFromResponse = (
       ...(error.error_data?.details !== undefined ? { details: error.error_data.details } : {}),
       ...(error.fbtrace_id !== undefined ? { fbtraceId: error.fbtrace_id } : {}),
     };
-    return isAuthError(httpStatus, error.code)
-      ? new WhatsAppAuthenticationError(error.message, fields)
-      : new WhatsAppApiError(error.message, fields);
+    return selectApiError(httpStatus, error.code, error.message, fields);
   }
 
   const message = `WhatsApp Cloud API request failed with HTTP ${httpStatus}.`;
@@ -131,7 +180,5 @@ export const errorFromResponse = (
     code: 0,
     raw: bodyText ?? null,
   };
-  return isAuthError(httpStatus, 0)
-    ? new WhatsAppAuthenticationError(message, fields)
-    : new WhatsAppApiError(message, fields);
+  return selectApiError(httpStatus, 0, message, fields);
 };
