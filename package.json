@@ -58,8 +58,7 @@
   },
   "packageManager": "pnpm@9.15.9",
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.0",
