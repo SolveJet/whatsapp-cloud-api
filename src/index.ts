@@ -2,9 +2,30 @@
  * TypeScript SDK for the WhatsApp Cloud API
  * (Meta-hosted WhatsApp Business Platform).
  *
- * Foundation phase: this module exposes a minimal client skeleton only.
- * The messaging, template, media, and webhook surfaces are not implemented yet.
+ * Foundation phase: this module exposes a minimal client skeleton with a typed
+ * HTTP core and error hierarchy. The messaging, template, media, and webhook
+ * surfaces are not implemented yet.
  */
+
+import { HttpClient } from './http.js';
+import type { RequestOptions } from './types/common.js';
+
+export {
+  WhatsAppApiError,
+  WhatsAppAuthenticationError,
+  WhatsAppError,
+  WhatsAppRequestError,
+  WhatsAppValidationError,
+  errorFromResponse,
+} from './errors.js';
+export type { WhatsAppApiErrorFields } from './errors.js';
+export type { GraphErrorEnvelope, HttpMethod, RequestOptions } from './types/common.js';
+
+/** Default per-attempt request timeout in milliseconds. */
+export const DEFAULT_TIMEOUT_MS = 30000;
+
+/** Default maximum number of retries (total attempts = this + 1). */
+export const DEFAULT_MAX_RETRIES = 2;
 
 /** Default Graph API version targeted by the client. */
 export const DEFAULT_API_VERSION = 'v23.0';
@@ -24,10 +45,14 @@ export interface WhatsAppClientConfig {
   apiVersion?: string;
   /** Base URL for the Graph API. Defaults to {@link DEFAULT_BASE_URL}. */
   baseUrl?: string;
+  /** Per-attempt request timeout in ms. Defaults to {@link DEFAULT_TIMEOUT_MS}. */
+  timeoutMs?: number;
+  /** Maximum number of retries. Defaults to {@link DEFAULT_MAX_RETRIES}. */
+  maxRetries?: number;
 }
 
 type ResolvedConfig = Required<
-  Pick<WhatsAppClientConfig, 'accessToken' | 'apiVersion' | 'baseUrl'>
+  Pick<WhatsAppClientConfig, 'accessToken' | 'apiVersion' | 'baseUrl' | 'timeoutMs' | 'maxRetries'>
 > &
   Pick<WhatsAppClientConfig, 'phoneNumberId' | 'businessAccountId'>;
 
@@ -41,6 +66,7 @@ const trimTrailingSlashes = (value: string): string => value.replace(/\/+$/, '')
  */
 export class WhatsAppClient {
   private readonly config: ResolvedConfig;
+  private readonly http: HttpClient;
 
   constructor(config: WhatsAppClientConfig) {
     if (!config.accessToken) {
@@ -51,11 +77,30 @@ export class WhatsAppClient {
       accessToken: config.accessToken,
       apiVersion: config.apiVersion ?? DEFAULT_API_VERSION,
       baseUrl: config.baseUrl ?? DEFAULT_BASE_URL,
+      timeoutMs: config.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+      maxRetries: config.maxRetries ?? DEFAULT_MAX_RETRIES,
       ...(config.phoneNumberId !== undefined ? { phoneNumberId: config.phoneNumberId } : {}),
       ...(config.businessAccountId !== undefined
         ? { businessAccountId: config.businessAccountId }
         : {}),
     };
+
+    this.http = new HttpClient({
+      accessToken: this.config.accessToken,
+      baseUrl: this.getBaseUrl(),
+      timeoutMs: this.config.timeoutMs,
+      maxRetries: this.config.maxRetries,
+    });
+  }
+
+  /**
+   * Internal request entry point for resource modules. Delegates to the
+   * configured {@link HttpClient}. Not part of the stable public surface.
+   *
+   * @internal
+   */
+  request<T>(options: RequestOptions): Promise<T> {
+    return this.http.request<T>(options);
   }
 
   /** Returns the configured phone number ID, if any. */
