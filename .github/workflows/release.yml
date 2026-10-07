@@ -1,16 +1,18 @@
 # Release workflow — publishes the package to npm via OIDC Trusted Publishing.
 #
 # No NPM_TOKEN is required. Authentication uses GitHub Actions' OIDC identity,
-# which npm exchanges for a short-lived publish token at publish time. This
-# requires a one-time setup on npmjs.com:
-#   Package → Settings → Trusted Publisher → GitHub Actions, with
-#     Organization/user: solvejet
-#     Repository:        whatsapp-cloud-api
-#     Workflow filename: release.yml
-# Trusted publishing also requires the package to already exist on npm (publish
-# the first version manually once), npm CLI >= 11.5.1, and Node >= 22.14.0.
-# Provenance attestations are generated automatically for public repos — no
-# --provenance flag needed.
+# which the npm CLI exchanges for a short-lived publish token at publish time.
+# One-time setup on npmjs.com (Package → Settings → Trusted Publisher →
+# GitHub Actions): Organization/user "SolveJet", Repository
+# "whatsapp-cloud-api", Workflow filename "release.yml", Allowed action
+# "npm publish".
+#
+# IMPORTANT: do NOT set `registry-url` on actions/setup-node here. That makes
+# setup-node write an .npmrc containing `_authToken=${NODE_AUTH_TOKEN}`; with no
+# token present npm attempts (failing) token auth instead of OIDC and the
+# publish fails with a misleading 404. Leaving it unset lets the OIDC-capable
+# npm CLI authenticate via the id-token. OIDC needs npm >= 11.5.1 (Node 24
+# ships a compatible npm; we also upgrade npm to be safe).
 name: Release
 
 on:
@@ -35,9 +37,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: 'pnpm'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -60,8 +61,8 @@ jobs:
         run: npm install -g npm@latest
 
       # Publish with the npm CLI so it performs the OIDC token exchange.
-      # access/provenance come from package.json publishConfig. (No
-      # --no-git-checks: that is a pnpm flag; npm has no such option and the
-      # CI checkout is already clean.)
+      # --access public for the scoped package; --provenance records a build
+      # attestation (auto-enabled under OIDC for public repos, set explicitly
+      # here for clarity).
       - name: Publish
-        run: npm publish
+        run: npm publish --provenance --access public
