@@ -6,7 +6,7 @@
 
 TypeScript SDK for the [WhatsApp Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api) — the Meta-hosted WhatsApp Business Platform. It provides a typed, zero-runtime-dependency client built on the native `fetch` available in Node 20+.
 
-> **Status: active development.** Outbound messaging is implemented: text, media (image, video, audio, document, sticker), location, the full contacts object (addresses, org, URLs, birthday, structured name parts), templates, interactive buttons and lists with rich headers (text, image, video, document), the interactive CTA URL / flow / location-request / product / product-list senders, reactions, and mark-as-read. Every sender accepts a `replyToMessageId` to thread a reply via message context, and documented limits are validated client-side before a request is sent. **Inbound webhooks** are also implemented: the GET verification handshake, constant-time `X-Hub-Signature-256` validation, and typed parsing of incoming messages and status updates. Media **upload/download** and template management are not implemented yet. While on `0.x`, minor versions may include breaking changes as the remaining surface lands.
+> **Status: active development.** Outbound messaging is implemented: text, media (image, video, audio, document, sticker), location, the full contacts object (addresses, org, URLs, birthday, structured name parts), templates, interactive buttons and lists with rich headers (text, image, video, document), the interactive CTA URL / flow / location-request / product / product-list senders, reactions, and mark-as-read. Every sender accepts a `replyToMessageId` to thread a reply via message context, and documented limits are validated client-side before a request is sent. **Inbound webhooks** are also implemented: the GET verification handshake, constant-time `X-Hub-Signature-256` validation, and typed parsing of incoming messages and status updates. **Media** upload and download are also implemented: upload a file to get a reusable media `id`, resolve its short-lived download URL, download the bytes with the token, and delete it. Template management is not implemented yet. While on `0.x`, minor versions may include breaking changes as the remaining surface lands.
 
 ### Implemented
 
@@ -15,6 +15,7 @@ TypeScript SDK for the [WhatsApp Cloud API](https://developers.facebook.com/docs
 - **Templates:** `sendTemplate`.
 - **Interactive:** `sendInteractiveButtons`, `sendInteractiveList` (with text/image/video/document headers), `sendInteractiveCtaUrl`, `sendInteractiveFlow`, `sendLocationRequest`, `sendProduct`, `sendProductList`.
 - **Other:** `sendReaction`, `markAsRead`.
+- **Media:** `client.media.upload`, `getUrl`, `download`/`downloadByUrl`, and `delete` (upload a file for a reusable `id`, resolve the short-lived download URL, fetch bytes with the token, and delete).
 - **Reply/context:** pass `{ replyToMessageId }` to any sender to reply to a prior message.
 - **Webhooks:** `verifyWebhook`/`verifyWebhookQuery` (GET handshake), `verifySignature` (constant-time `X-Hub-Signature-256`), `parseWebhook`/`extractMessages`/`extractStatuses` with a typed `IncomingMessage` union and `MessageStatus`, and a framework-agnostic `WebhookHandler`.
 - **Client-side validation:** body/footer/header lengths, button counts and ids, list section/row limits, reaction emoji, flow CTA, and product-list item counts are checked before the request, raising `WhatsAppValidationError` with a clear field + limit message. Nothing is silently truncated.
@@ -22,8 +23,8 @@ TypeScript SDK for the [WhatsApp Cloud API](https://developers.facebook.com/docs
 
 ### Not yet implemented
 
-- Media **upload** and **download**.
 - Template management.
+- Phone number and WABA management.
 
 ## Install
 
@@ -85,6 +86,52 @@ await client.messages.sendInteractiveCtaUrl('15551234567', {
   url: 'https://example.com/store',
 });
 ```
+
+### Media
+
+Upload a file once to get a reusable media `id`, then send it with any of the
+media senders. `upload` accepts a `Blob`/`File`, or `{ file, type, filename }`
+wrapping `Blob`/`Uint8Array`/`ArrayBuffer` bytes. A content type is required: it
+comes from a `Blob`'s `type` or the explicit `type`, otherwise `upload` throws
+`WhatsAppValidationError`.
+
+```ts
+import { readFile } from 'node:fs/promises';
+
+const bytes = await readFile('./photo.jpg');
+const { id } = await client.media.upload({
+  file: bytes,
+  type: 'image/jpeg',
+  filename: 'photo.jpg',
+});
+
+// Reuse the id with any media sender.
+await client.messages.sendImage('15551234567', { id });
+```
+
+Resolve a media id to its metadata, then download the bytes. The `url` returned
+by `getUrl` is short-lived and must be fetched with the access token —
+`download` handles that for you (it adds the bearer token and a `User-Agent`)
+and returns the raw bytes as a `Uint8Array`.
+
+```ts
+const info = await client.media.getUrl(id);
+console.log(info.mimeType, info.fileSize); // e.g. "image/jpeg" 20481
+
+// download() calls getUrl() internally, then fetches the short-lived url.
+const { data, mimeType } = await client.media.download(id);
+await writeFile('./downloaded.jpg', data); // data is a Uint8Array
+```
+
+Delete media you no longer need:
+
+```ts
+const { success } = await client.media.delete(id);
+```
+
+Uploaded media is retained by Meta for **30 days**, after which the id stops
+resolving. Per-type upload size limits apply: images 5 MB, video 16 MB, audio
+16 MB, documents 100 MB, and stickers 100 KB (static) / 500 KB (animated).
 
 ### Handling errors
 
@@ -231,7 +278,6 @@ Prefer `WebhookHandler` when you want the secrets bound once: `const handler = n
 
 ## Roadmap
 
-- **Media** upload and download (upload a file, get a media `id`, send it with the media senders above; download inbound media by `id`).
 - **Template management** (create, list, update, delete message templates).
 - **Phone number and WABA management.**
 - Python and Rust ports of the SDK, following the TypeScript release.

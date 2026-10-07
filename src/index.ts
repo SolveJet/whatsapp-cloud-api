@@ -5,11 +5,13 @@
  * Exposes the {@link WhatsAppClient} with a typed HTTP core, a typed error
  * hierarchy, the outbound Messages API (`client.messages`), and framework-
  * agnostic webhook utilities (verification, signature validation, and typed
- * inbound parsing). Template management and media upload/download are not yet
+ * inbound parsing), and the Media API (`client.media`) for upload, URL
+ * resolution, download, and deletion. Template management is not yet
  * implemented.
  */
 
 import { HttpClient } from './http.js';
+import { MediaResource } from './resources/media.js';
 import { MessagesResource } from './resources/messages.js';
 import type { RequestOptions } from './types/common.js';
 
@@ -25,7 +27,23 @@ export {
   errorFromResponse,
 } from './errors.js';
 export type { WhatsAppApiErrorFields } from './errors.js';
-export type { GraphErrorEnvelope, HttpMethod, RequestOptions } from './types/common.js';
+export type {
+  GraphErrorEnvelope,
+  HttpMethod,
+  RequestOptions,
+  ResponseType,
+} from './types/common.js';
+
+export { MediaResource } from './resources/media.js';
+export type {
+  DeleteMediaResponse,
+  DownloadMediaResult,
+  MediaBytes,
+  MediaInfo,
+  MediaRequestOptions,
+  MediaUploadInput,
+  UploadMediaResponse,
+} from './types/media.js';
 
 export { MessagesResource } from './resources/messages.js';
 export type {
@@ -151,6 +169,7 @@ export class WhatsAppClient {
   private readonly config: ResolvedConfig;
   private readonly http: HttpClient;
   private messagesResource?: MessagesResource;
+  private mediaResource?: MediaResource;
 
   constructor(config: WhatsAppClientConfig) {
     if (!config.accessToken) {
@@ -198,6 +217,19 @@ export class WhatsAppClient {
       () => this.config.phoneNumberId,
     );
     return this.messagesResource;
+  }
+
+  /**
+   * Typed Media API. Lazily instantiated on first access and reused
+   * thereafter, bound to the internal request path and the configured default
+   * phone number ID.
+   */
+  get media(): MediaResource {
+    this.mediaResource ??= new MediaResource(
+      (options) => this.http.request(options),
+      () => this.config.phoneNumberId,
+    );
+    return this.mediaResource;
   }
 
   /** Returns the configured phone number ID, if any. */
