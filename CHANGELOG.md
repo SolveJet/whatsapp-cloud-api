@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Upgraded `vitest` and `@vitest/coverage-v8` to v5, resolving the transitive `tinypool` critical advisories (GHSA-85c8-ppgw-ccpr, GHSA-5gmw-xhrv-c9v3); vitest 5 no longer depends on the affected `tinypool`.
+- CI dev-tooling checks (lint, typecheck, test, build) now run on Node 22 and 24, since vitest 5 requires Node >= 22.12. The published package continues to support Node 20 (`engines.node` stays `>=20`), verified by a dedicated job that imports the built ESM and CJS artifacts on Node 20.
+
+### Added
+
+- A dependency-audit CI job that runs `pnpm audit --audit-level high`, failing the build only on high/critical advisories.
+
 ## [0.1.0] - 2026-10-07
 
 ### Added
