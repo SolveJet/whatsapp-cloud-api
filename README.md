@@ -6,7 +6,7 @@
 
 TypeScript SDK for the [WhatsApp Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api) — the Meta-hosted WhatsApp Business Platform. It aims to provide a typed, zero-runtime-dependency client built on the native `fetch` and `FormData` available in Node 20+.
 
-> **Status: active development.** Outbound messaging is implemented: text, media (image, video, audio, document, sticker), location, the full contacts object (addresses, org, URLs, birthday, structured name parts), templates, interactive buttons and lists with rich headers (text, image, video, document), the interactive CTA URL / flow / location-request / product / product-list senders, reactions, and mark-as-read. Every sender accepts a `replyToMessageId` to thread a reply via message context, and documented limits are validated client-side before a request is sent. Media **upload/download** and **webhooks** are not implemented yet, and APIs may change before the first stable release.
+> **Status: active development.** Outbound messaging is implemented: text, media (image, video, audio, document, sticker), location, the full contacts object (addresses, org, URLs, birthday, structured name parts), templates, interactive buttons and lists with rich headers (text, image, video, document), the interactive CTA URL / flow / location-request / product / product-list senders, reactions, and mark-as-read. Every sender accepts a `replyToMessageId` to thread a reply via message context, and documented limits are validated client-side before a request is sent. **Inbound webhooks** are also implemented: the GET verification handshake, constant-time `X-Hub-Signature-256` validation, and typed parsing of incoming messages and status updates. Media **upload/download** is not implemented yet, and APIs may change before the first stable release.
 
 ### Implemented
 
@@ -16,13 +16,13 @@ TypeScript SDK for the [WhatsApp Cloud API](https://developers.facebook.com/docs
 - **Interactive:** `sendInteractiveButtons`, `sendInteractiveList` (with text/image/video/document headers), `sendInteractiveCtaUrl`, `sendInteractiveFlow`, `sendLocationRequest`, `sendProduct`, `sendProductList`.
 - **Other:** `sendReaction`, `markAsRead`.
 - **Reply/context:** pass `{ replyToMessageId }` to any sender to reply to a prior message.
+- **Webhooks:** `verifyWebhook`/`verifyWebhookQuery` (GET handshake), `verifySignature` (constant-time `X-Hub-Signature-256`), `parseWebhook`/`extractMessages`/`extractStatuses` with a typed `IncomingMessage` union and `MessageStatus`, and a framework-agnostic `WebhookHandler`.
 - **Client-side validation:** body/footer/header lengths, button counts and ids, list section/row limits, reaction emoji, flow CTA, and product-list item counts are checked before the request, raising `WhatsAppValidationError` with a clear field + limit message. Nothing is silently truncated.
-- **Typed errors:** `WhatsAppApiError`, `WhatsAppAuthenticationError`, `WhatsAppRateLimitError`, `WhatsAppReEngagementError`, `WhatsAppRequestError`, and `WhatsAppValidationError`.
+- **Typed errors:** `WhatsAppApiError`, `WhatsAppAuthenticationError`, `WhatsAppRateLimitError`, `WhatsAppReEngagementError`, `WhatsAppRequestError`, `WhatsAppValidationError`, and `WhatsAppWebhookError`.
 
 ### Not yet implemented
 
 - Media **upload** and **download**.
-- **Webhooks** (inbound messages and status callbacks).
 - Template management.
 
 ## Install
@@ -135,9 +135,103 @@ All of the above extend `WhatsAppApiError`, so `.code`, `.httpStatus`, and
 related fields are available on each. `WhatsAppValidationError` is raised
 locally before a request is sent and is not part of this mapping.
 
+## Webhooks
+
+Receiving inbound messages and delivery statuses is a two-step model:
+
+1. **GET verification.** When you configure the webhook, Meta sends a GET request with `hub.mode`, `hub.verify_token`, and `hub.challenge`. Echo the raw `hub.challenge` back with a `200` when the token matches your configured verify token; otherwise return `403`. The challenge must be returned as the raw response body, not wrapped in JSON.
+2. **POST deliveries.** Meta POSTs event payloads signed with `X-Hub-Signature-256`. Verify the signature against the **raw request body** using your App Secret, return `200` immediately, then parse and process.
+
+Three distinct secrets are involved, and they are not interchangeable:
+
+- **Verify token** — a string you define yourself, used only for the GET handshake.
+- **App Secret** — from your Meta app settings, used to compute/verify the `X-Hub-Signature-256` signature.
+- **Access token** — used to _send_ messages (see above), never for webhooks.
+
+### Framework-agnostic Express example
+
+```ts
+import express from 'express';
+import {
+  verifyWebhook,
+  verifySignature,
+  parseWebhook,
+  extractMessages,
+  extractStatuses,
+} from '@solvejet/whatsapp-cloud-api';
+
+const app = express();
+
+const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN!; // you define this
+const APP_SECRET = process.env.WHATSAPP_APP_SECRET!; // from Meta app settings
+
+// 1. GET verification handshake — echo the raw challenge.
+app.get('/webhook', (req, res) => {
+  const { statusCode, body } = verifyWebhook(
+    {
+      mode: req.query['hub.mode'] as string | undefined,
+      token: req.query['hub.verify_token'] as string | undefined,
+      challenge: req.query['hub.challenge'] as string | undefined,
+    },
+    VERIFY_TOKEN,
+  );
+  // Send the raw challenge string, NOT res.json(...).
+  res.status(statusCode).send(body);
+});
+
+// 2. POST deliveries — capture the RAW body so the signature matches.
+app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  const rawBody = req.body as Buffer; // raw bytes, exactly as received
+  const signature = req.get('x-hub-signature-256');
+
+  if (!verifySignature(rawBody, signature, APP_SECRET)) {
+    res.sendStatus(401);
+    return;
+  }
+
+  // Acknowledge fast, then process asynchronously (see gotchas below).
+  res.sendStatus(200);
+
+  const payload = parseWebhook(rawBody.toString('utf8'));
+
+  for (const message of extractMessages(payload)) {
+    // Deduplicate on message.id (the wamid) to stay idempotent across retries.
+    switch (message.type) {
+      case 'text':
+        console.log(`text from ${message.from}: ${message.text.body}`);
+        break;
+      case 'image':
+        console.log(`image ${message.image.id} from ${message.from}`);
+        break;
+      case 'interactive':
+        if (message.interactive.type === 'button_reply') {
+          console.log(`button ${message.interactive.button_reply?.id}`);
+        } else {
+          console.log(`list ${message.interactive.list_reply?.id}`);
+        }
+        break;
+      default:
+        // New/unrecognized Meta message types still parse and land here.
+        console.log(`unhandled message type: ${message.type}`);
+    }
+  }
+
+  for (const status of extractStatuses(payload)) {
+    console.log(`message ${status.id} -> ${status.status}`);
+  }
+});
+```
+
+Prefer `WebhookHandler` when you want the secrets bound once: `const handler = new WebhookHandler({ appSecret, verifyToken })` gives you `handler.handleVerification(query)` and `handler.parse(rawBody, signature)` (which verifies the signature and throws `WhatsAppWebhookError` when an App Secret is configured and the signature is missing or invalid).
+
+**Two gotchas worth repeating:**
+
+- **The signature is computed over the RAW bytes.** Verify `verifySignature` against the exact bytes Meta sent (`express.raw(...)` above). Re-serializing parsed JSON changes the bytes and makes a valid signature fail — never run `JSON.stringify(req.body)` and verify that.
+- **Return `200` fast, then process.** Meta retries deliveries and will deactivate endpoints that respond slowly. Acknowledge immediately and do the real work asynchronously. Because of retries, deduplicate on the message id (`wamid`, `message.id`) to keep processing idempotent.
+
 ## Roadmap
 
-- Flesh out the Cloud API surface: messages, templates, media, and webhooks.
+- Flesh out the Cloud API surface: messages, templates, and media.
 - Publish the first stable release to npm.
 - Python and Rust ports of the SDK are planned to follow the TypeScript release.
 
