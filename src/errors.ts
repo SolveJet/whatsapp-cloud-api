@@ -115,8 +115,17 @@ export class WhatsAppValidationError extends WhatsAppError {
 const AUTH_ERROR_CODES = new Set<number>([0, 190]);
 
 /** True when the status/code pair indicates an auth failure per Meta guidance. */
-const isAuthError = (httpStatus: number, code: number): boolean =>
-  httpStatus === 401 || httpStatus === 403 || AUTH_ERROR_CODES.has(code);
+const isAuthError = (httpStatus: number, code: number): boolean => {
+  if (httpStatus === 401 || httpStatus === 403) {
+    return true;
+  }
+  // Code 0 is the sentinel used for responses with no parseable Graph code; it
+  // must not shadow the rate-limit mapping for a plain HTTP 429.
+  if (httpStatus === 429) {
+    return false;
+  }
+  return AUTH_ERROR_CODES.has(code);
+};
 
 /** Graph error codes that indicate a rate-limit/throttling condition. */
 const RATE_LIMIT_ERROR_CODES = new Set<number>([130429, 131056, 133016]);

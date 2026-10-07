@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HttpClient } from '../src/http.js';
 import {
   WhatsAppApiError,
+  WhatsAppAuthenticationError,
   WhatsAppRateLimitError,
   WhatsAppReEngagementError,
+  errorFromResponse,
 } from '../src/errors.js';
 
 const BASE_URL = 'https://graph.facebook.com/v23.0';
@@ -108,7 +110,7 @@ describe('WhatsAppRateLimitError mapping and retry', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('maps a plain HTTP 429 with no special code to WhatsAppRateLimitError and retries', async () => {
+  it('maps a plain HTTP 429 envelope with code 0 to WhatsAppRateLimitError (not auth)', async () => {
     vi.useFakeTimers();
     const fetchMock = vi
       .fn()
@@ -125,6 +127,42 @@ describe('WhatsAppRateLimitError mapping and retry', () => {
     await vi.runAllTimersAsync();
     await expect(promise).resolves.toEqual({ ok: true });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('surfaces a plain HTTP 429 (code-0 envelope) as WhatsAppRateLimitError after retries exhaust', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(jsonResponse(errorEnvelope(0), { status: 429 }))),
+    );
+
+    try {
+      await makeClient({ maxRetries: 0 }).request({ method: 'POST', path: 'x/messages', body: {} });
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(WhatsAppRateLimitError);
+      expect(error).not.toBeInstanceOf(WhatsAppAuthenticationError);
+      expect((error as WhatsAppRateLimitError).httpStatus).toBe(429);
+    }
+  });
+
+  it('maps a true no-envelope HTTP 429 to WhatsAppRateLimitError via errorFromResponse', () => {
+    const error = errorFromResponse(429, undefined, 'Too Many Requests');
+    expect(error).toBeInstanceOf(WhatsAppRateLimitError);
+    expect(error).not.toBeInstanceOf(WhatsAppAuthenticationError);
+    expect(error.httpStatus).toBe(429);
+    expect(error.code).toBe(0);
+  });
+
+  it('still maps HTTP 401/403 and code 190 to WhatsAppAuthenticationError', () => {
+    expect(errorFromResponse(401, undefined)).toBeInstanceOf(WhatsAppAuthenticationError);
+    expect(errorFromResponse(403, undefined)).toBeInstanceOf(WhatsAppAuthenticationError);
+    expect(
+      errorFromResponse(400, {
+        error: { message: 'Invalid token', type: 'OAuthException', code: 190 },
+      }),
+    ).toBeInstanceOf(WhatsAppAuthenticationError);
+    // No-envelope non-429 responses still fall back to auth via the code-0 sentinel.
+    expect(errorFromResponse(500, undefined)).toBeInstanceOf(WhatsAppAuthenticationError);
   });
 
   it('populates retryAfterMs on a WhatsAppRateLimitError when Retry-After is present', async () => {
