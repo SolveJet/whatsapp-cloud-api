@@ -7,14 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-07
+
+### Added
+
+- Media API via `client.media`: `upload` (multipart upload of a `Blob`/`File` or raw bytes with an explicit content type, returning a reusable media `id`), `getUrl` (typed `MediaInfo` with a short-lived download URL), `download`/`downloadByUrl` (fetch the bytes as a `Uint8Array` with the bearer token and a `User-Agent`), and `delete`. Each method accepts an optional `phoneNumberId` override.
+- HTTP core support for the media lifecycle: multipart `FormData` request bodies (no manual `Content-Type`, so `fetch` sets the boundary), binary responses (`responseType: 'binary'` returning a `Uint8Array`), absolute `http(s)` download targets used verbatim instead of the base URL, and an optional `User-Agent` header. Non-idempotent multipart uploads run as a single attempt (an unreplayable body is never retried); idempotent `GET`/`DELETE` and downloads still follow the retry policy. Error responses always parse the Graph envelope and throw a typed error — binary callers never receive partial bytes on failure.
+- A dependency-audit CI job that runs `pnpm audit --audit-level high`, failing the build only on high/critical advisories.
+
 ### Changed
 
 - Upgraded `vitest` and `@vitest/coverage-v8` to v5, resolving the transitive `tinypool` critical advisories (GHSA-85c8-ppgw-ccpr, GHSA-5gmw-xhrv-c9v3); vitest 5 no longer depends on the affected `tinypool`.
 - CI dev-tooling checks (lint, typecheck, test, build) now run on Node 22 and 24, since vitest 5 requires Node >= 22.12. The published package continues to support Node 20 (`engines.node` stays `>=20`), verified by a dedicated job that imports the built ESM and CJS artifacts on Node 20.
-
-### Added
-
-- A dependency-audit CI job that runs `pnpm audit --audit-level high`, failing the build only on high/critical advisories.
 
 ## [0.1.0] - 2026-10-07
 
@@ -39,5 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Interactive button and list headers now accept the structured `InteractiveHeader` type in addition to a plain string (backward compatible).
 - Removed stale "omitted" notes from the contact types now that the full contacts object is modeled.
 
-[Unreleased]: https://github.com/solvejet/whatsapp-cloud-api/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/solvejet/whatsapp-cloud-api/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/solvejet/whatsapp-cloud-api/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/solvejet/whatsapp-cloud-api/releases/tag/v0.1.0
