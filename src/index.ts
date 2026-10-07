@@ -3,8 +3,9 @@
  * (Meta-hosted WhatsApp Business Platform).
  *
  * Exposes the {@link WhatsAppClient} with a typed HTTP core, a typed error
- * hierarchy, and the outbound Messages API (`client.messages`). Template
- * management, media upload/download, and webhook handling are not yet
+ * hierarchy, the outbound Messages API (`client.messages`), and framework-
+ * agnostic webhook utilities (verification, signature validation, and typed
+ * inbound parsing). Template management and media upload/download are not yet
  * implemented.
  */
 
@@ -20,6 +21,7 @@ export {
   WhatsAppReEngagementError,
   WhatsAppRequestError,
   WhatsAppValidationError,
+  WhatsAppWebhookError,
   errorFromResponse,
 } from './errors.js';
 export type { WhatsAppApiErrorFields } from './errors.js';
@@ -60,6 +62,47 @@ export type {
   TemplatePayload,
   TextMessageOptions,
 } from './types/messages.js';
+
+export {
+  WebhookHandler,
+  extractMessages,
+  extractStatuses,
+  isMessageEvent,
+  isStatusEvent,
+  parseWebhook,
+  verifySignature,
+  verifyWebhook,
+  verifyWebhookQuery,
+} from './resources/webhooks.js';
+export type { WebhookVerificationResult } from './resources/webhooks.js';
+export type {
+  AudioIncomingMessage,
+  ButtonIncomingMessage,
+  ContactsIncomingMessage,
+  DocumentIncomingMessage,
+  ImageIncomingMessage,
+  IncomingContactCard,
+  IncomingMediaObject,
+  IncomingMessage,
+  InteractiveIncomingMessage,
+  LocationIncomingMessage,
+  MessageStatus,
+  ParsedWebhook,
+  ReactionIncomingMessage,
+  StickerIncomingMessage,
+  TextIncomingMessage,
+  UnknownIncomingMessage,
+  VideoIncomingMessage,
+  WebhookChange,
+  WebhookContact,
+  WebhookEntry,
+  WebhookHandlerConfig,
+  WebhookMessageContext,
+  WebhookMessageError,
+  WebhookMetadata,
+  WebhookPayload,
+  WebhookValue,
+} from './types/webhooks.js';
 
 /** Default per-attempt request timeout in milliseconds. */
 export const DEFAULT_TIMEOUT_MS = 30000;

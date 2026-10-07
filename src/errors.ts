@@ -111,6 +111,18 @@ export class WhatsAppValidationError extends WhatsAppError {
   }
 }
 
+/**
+ * Thrown for malformed or unparseable webhook payloads and for webhook
+ * signature-verification failures. Its message NEVER contains the app secret,
+ * verify token, or signature header.
+ */
+export class WhatsAppWebhookError extends WhatsAppError {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'WhatsAppWebhookError';
+  }
+}
+
 /** Graph error codes that always indicate an authentication/authorization problem. */
 const AUTH_ERROR_CODES = new Set<number>([0, 190]);
 
