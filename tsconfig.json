@@ -15,6 +15,11 @@
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
 
+    // Silences TS5101 for `baseUrl`, which tsup (8.5.1) injects into the
+    // compiler options during its DTS build (our own typecheck never sets it).
+    // Remove once tsup stops injecting baseUrl or on the TypeScript 7 upgrade.
+    "ignoreDeprecations": "6.0",
+
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
