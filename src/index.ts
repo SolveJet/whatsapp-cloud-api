@@ -2,9 +2,10 @@
  * TypeScript SDK for the WhatsApp Cloud API
  * (Meta-hosted WhatsApp Business Platform).
  *
- * Foundation phase: this module exposes a minimal client skeleton with a typed
- * HTTP core and error hierarchy. The messaging, template, media, and webhook
- * surfaces are not implemented yet.
+ * Exposes the {@link WhatsAppClient} with a typed HTTP core, a typed error
+ * hierarchy, and the outbound Messages API (`client.messages`). Template
+ * management, media upload/download, and webhook handling are not yet
+ * implemented.
  */
 
 import { HttpClient } from './http.js';
@@ -84,10 +85,10 @@ type ResolvedConfig = Required<
 const trimTrailingSlashes = (value: string): string => value.replace(/\/+$/, '');
 
 /**
- * Minimal WhatsApp Cloud API client skeleton.
+ * WhatsApp Cloud API client.
  *
- * Stores normalized configuration and resolves the Graph API base URL.
- * HTTP calls are intentionally not implemented in the foundation phase.
+ * Normalizes configuration, resolves the versioned Graph API base URL, owns the
+ * HTTP core, and exposes resource APIs such as {@link WhatsAppClient.messages}.
  */
 export class WhatsAppClient {
   private readonly config: ResolvedConfig;
