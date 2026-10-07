@@ -1,8 +1,16 @@
-# Release workflow — publishes the package to npm with provenance.
+# Release workflow — publishes the package to npm via OIDC Trusted Publishing.
 #
-# REQUIRED SETUP: a maintainer must add an `NPM_TOKEN` repository secret
-# (an npm automation or granular access token with publish rights for the
-# @solvejet scope). Without it, publishing will fail.
+# No NPM_TOKEN is required. Authentication uses GitHub Actions' OIDC identity,
+# which npm exchanges for a short-lived publish token at publish time. This
+# requires a one-time setup on npmjs.com:
+#   Package → Settings → Trusted Publisher → GitHub Actions, with
+#     Organization/user: solvejet
+#     Repository:        whatsapp-cloud-api
+#     Workflow filename: release.yml
+# Trusted publishing also requires the package to already exist on npm (publish
+# the first version manually once), npm CLI >= 11.5.1, and Node >= 22.14.0.
+# Provenance attestations are generated automatically for public repos — no
+# --provenance flag needed.
 name: Release
 
 on:
@@ -11,7 +19,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write
+  id-token: write # required for OIDC trusted publishing
 
 jobs:
   publish:
@@ -27,7 +35,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
@@ -47,7 +55,11 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      # Ensure an OIDC-capable npm CLI (trusted publishing needs >= 11.5.1).
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      # Publish with the npm CLI so it performs the OIDC token exchange.
+      # access/provenance come from package.json publishConfig.
       - name: Publish
-        run: pnpm publish --provenance --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --no-git-checks
