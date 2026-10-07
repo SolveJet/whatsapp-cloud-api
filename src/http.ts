@@ -14,7 +14,7 @@ import {
   WhatsAppValidationError,
   errorFromResponse,
 } from './errors.js';
-import type { GraphErrorEnvelope, RequestOptions } from './types/common.js';
+import type { GraphErrorEnvelope, RequestOptions, ResponseType } from './types/common.js';
 
 /** Configuration for an {@link HttpClient} instance. */
 export interface HttpClientConfig {
@@ -60,6 +60,10 @@ const parseRetryAfter = (headerValue: string | null): number | undefined => {
   return undefined;
 };
 
+/** Narrows an unknown body to a `FormData` instance (multipart upload). */
+const isFormData = (body: unknown): body is FormData =>
+  typeof FormData !== 'undefined' && body instanceof FormData;
+
 /** Attempts to parse response text as a Graph error envelope. */
 const parseEnvelope = (text: string): GraphErrorEnvelope | undefined => {
   try {
@@ -95,22 +99,48 @@ export class HttpClient {
     this.delay = config.delay ?? defaultDelay;
   }
 
-  /** Executes a request, applying timeout and the retry policy, and returns parsed JSON. */
-  async request<T>({ method, path, body, signal }: RequestOptions): Promise<T> {
-    const url = `${this.baseUrl}/${path.replace(/^\/+/, '')}`;
+  /** Executes a request, applying timeout and the retry policy, and returns the decoded body. */
+  async request<T>({
+    method,
+    path,
+    body,
+    signal,
+    responseType = 'json',
+    userAgent,
+  }: RequestOptions): Promise<T> {
+    // Absolute http(s) targets (e.g. the media CDN URL returned by getUrl) are
+    // used verbatim; everything else is a path under the versioned base URL.
+    const url = /^https?:\/\//i.test(path) ? path : `${this.baseUrl}/${path.replace(/^\/+/, '')}`;
     const headers: Record<string, string> = {
       Authorization: `Bearer ${this.accessToken}`,
     };
-    let serializedBody: string | undefined;
-    if (body !== undefined) {
+    if (userAgent !== undefined) {
+      headers['User-Agent'] = userAgent;
+    }
+
+    // A FormData body is sent as-is: fetch owns the multipart boundary, so we
+    // must NOT set Content-Type. A plain value is JSON-serialized as before.
+    const isMultipart = isFormData(body);
+    let outgoingBody: string | FormData | undefined;
+    if (isMultipart) {
+      outgoingBody = body as FormData;
+    } else if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
-      serializedBody = JSON.stringify(body);
+      outgoingBody = JSON.stringify(body);
+    }
+
+    // A multipart/stream body is not safely replayable (the underlying stream
+    // may be consumed on the first attempt), so non-idempotent uploads run as a
+    // single attempt and skip the retry loop. Idempotent GET/DELETE and binary
+    // downloads continue to follow the normal retry policy below.
+    if (isMultipart) {
+      return this.attempt<T>(url, method, headers, outgoingBody, signal, responseType);
     }
 
     let attempt = 0;
     for (;;) {
       try {
-        return await this.attempt<T>(url, method, headers, serializedBody, signal);
+        return await this.attempt<T>(url, method, headers, outgoingBody, signal, responseType);
       } catch (error) {
         const retryable = this.isRetryable(error);
         const retryAfterMs = this.retryAfterFromError(error);
@@ -129,8 +159,9 @@ export class HttpClient {
     url: string,
     method: string,
     headers: Record<string, string>,
-    body: string | undefined,
+    body: string | FormData | undefined,
     callerSignal: AbortSignal | undefined,
+    responseType: ResponseType,
   ): Promise<T> {
     const timeoutController = new AbortController();
     const timeoutId = setTimeout(() => {
@@ -170,9 +201,14 @@ export class HttpClient {
       }
     }
 
-    const text = await response.text();
-
     if (response.ok) {
+      // Binary callers get raw bytes as a Uint8Array (runtime-neutral, not a
+      // Node Buffer). JSON callers keep the existing text/parse behavior.
+      if (responseType === 'binary') {
+        const buffer = await response.arrayBuffer();
+        return new Uint8Array(buffer) as T;
+      }
+      const text = await response.text();
       if (text.length === 0) {
         return undefined as T;
       }
@@ -185,6 +221,9 @@ export class HttpClient {
       }
     }
 
+    // On a non-2xx response always read the body as text and parse the Graph
+    // error envelope — binary callers never receive partial bytes on error.
+    const text = await response.text();
     const envelope = parseEnvelope(text);
     const apiError = errorFromResponse(response.status, envelope, text);
     const retryAfterMs = parseRetryAfter(response.headers.get('retry-after'));
