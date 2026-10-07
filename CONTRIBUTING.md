@@ -25,18 +25,18 @@ pnpm install
 
 Common scripts:
 
-| Script                   | Description                               |
-| ------------------------ | ----------------------------------------- |
-| `pnpm run build`         | Build dual ESM + CJS output with types    |
-| `pnpm run dev`           | Rebuild on change (tsup watch)            |
-| `pnpm run test`          | Run the test suite once                   |
-| `pnpm run test:watch`    | Run tests in watch mode                   |
-| `pnpm run test:coverage` | Run tests with v8 coverage                |
-| `pnpm run typecheck`     | Type-check with `tsc --noEmit`            |
-| `pnpm run lint`          | Lint with ESLint                          |
-| `pnpm run lint:fix`      | Lint and auto-fix                         |
-| `pnpm run format`        | Format with Prettier                      |
-| `pnpm run format:check`  | Check formatting without writing          |
+| Script                   | Description                            |
+| ------------------------ | -------------------------------------- |
+| `pnpm run build`         | Build dual ESM + CJS output with types |
+| `pnpm run dev`           | Rebuild on change (tsup watch)         |
+| `pnpm run test`          | Run the test suite once                |
+| `pnpm run test:watch`    | Run tests in watch mode                |
+| `pnpm run test:coverage` | Run tests with v8 coverage             |
+| `pnpm run typecheck`     | Type-check with `tsc --noEmit`         |
+| `pnpm run lint`          | Lint with ESLint                       |
+| `pnpm run lint:fix`      | Lint and auto-fix                      |
+| `pnpm run format`        | Format with Prettier                   |
+| `pnpm run format:check`  | Check formatting without writing       |
 
 Before opening a pull request, make sure the full check set passes locally:
 

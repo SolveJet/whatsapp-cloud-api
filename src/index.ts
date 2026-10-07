@@ -26,7 +26,9 @@ export interface WhatsAppClientConfig {
   baseUrl?: string;
 }
 
-type ResolvedConfig = Required<Pick<WhatsAppClientConfig, 'accessToken' | 'apiVersion' | 'baseUrl'>> &
+type ResolvedConfig = Required<
+  Pick<WhatsAppClientConfig, 'accessToken' | 'apiVersion' | 'baseUrl'>
+> &
   Pick<WhatsAppClientConfig, 'phoneNumberId' | 'businessAccountId'>;
 
 const trimTrailingSlashes = (value: string): string => value.replace(/\/+$/, '');

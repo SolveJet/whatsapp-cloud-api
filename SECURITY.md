@@ -18,8 +18,8 @@ This SDK handles sensitive material — **access tokens** and **webhook signatur
 
 The project is in early development. Security fixes are applied to the latest release line.
 
-| Version | Supported          |
-| ------- | ------------------ |
+| Version | Supported           |
+| ------- | ------------------- |
 | 0.x     | ✅ (in development) |
 
 Once a stable 1.x release is published, this table will be updated to reflect the supported release lines.
