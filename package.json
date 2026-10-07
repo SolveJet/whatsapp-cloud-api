@@ -1,0 +1,76 @@
+{
+  "name": "@solvejet/whatsapp-cloud-api",
+  "version": "0.0.0",
+  "description": "TypeScript SDK for the WhatsApp Cloud API (Meta-hosted WhatsApp Business Platform)",
+  "keywords": [
+    "whatsapp",
+    "whatsapp-cloud-api",
+    "whatsapp-business",
+    "meta",
+    "messaging",
+    "sdk",
+    "typescript"
+  ],
+  "homepage": "https://github.com/solvejet/whatsapp-cloud-api#readme",
+  "bugs": {
+    "url": "https://github.com/solvejet/whatsapp-cloud-api/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/solvejet/whatsapp-cloud-api.git"
+  },
+  "license": "MIT",
+  "author": "SolveJet",
+  "contributors": [
+    "SolveJet (https://github.com/solvejet)"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepublishOnly": "pnpm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.37.0",
+    "@types/node": "^20.19.0",
+    "@vitest/coverage-v8": "^3.2.0",
+    "eslint": "^9.37.0",
+    "eslint-config-prettier": "^10.1.0",
+    "prettier": "^3.6.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.46.0",
+    "vitest": "^3.2.0"
+  }
+}
