@@ -7,12 +7,12 @@
 # "whatsapp-cloud-api", Workflow filename "release.yml", Allowed action
 # "npm publish".
 #
-# IMPORTANT: do NOT set `registry-url` on actions/setup-node here. That makes
-# setup-node write an .npmrc containing `_authToken=${NODE_AUTH_TOKEN}`; with no
-# token present npm attempts (failing) token auth instead of OIDC and the
-# publish fails with a misleading 404. Leaving it unset lets the OIDC-capable
-# npm CLI authenticate via the id-token. OIDC needs npm >= 11.5.1 (Node 24
-# ships a compatible npm; we also upgrade npm to be safe).
+# OIDC publishing needs: `id-token: write` (below), npm >= 11.5.1 (we install
+# npm@latest), and a registry configured for the scope so npm knows where to
+# run the token exchange. `registry-url` on setup-node provides that mapping,
+# but it also writes an `.npmrc` line `_authToken=${NODE_AUTH_TOKEN}`; with no
+# token that line makes npm attempt (failing) token auth, so we strip it before
+# publishing. npm then falls through to the OIDC exchange.
 name: Release
 
 on:
@@ -39,6 +39,7 @@ jobs:
         with:
           node-version: 24
           cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -60,9 +61,21 @@ jobs:
       - name: Update npm
         run: npm install -g npm@latest
 
-      # Publish with the npm CLI so it performs the OIDC token exchange.
-      # --access public for the scoped package; --provenance records a build
-      # attestation (auto-enabled under OIDC for public repos, set explicitly
-      # here for clarity).
+      # setup-node writes an .npmrc with `_authToken=${NODE_AUTH_TOKEN}`. With no
+      # token set, that line makes npm try (and fail) token auth instead of OIDC.
+      # Remove any auth-token line so npm uses the OIDC id-token exchange.
+      - name: Remove token placeholder from .npmrc
+        run: |
+          for f in "$NPM_CONFIG_USERCONFIG" "$HOME/.npmrc"; do
+            if [ -n "$f" ] && [ -f "$f" ]; then
+              echo "Scrubbing _authToken from $f"
+              sed -i '/_authToken/d' "$f" || true
+            fi
+          done
+
+      # Publish with the OIDC-capable npm. --access public for the scoped
+      # package; --provenance records a build attestation.
       - name: Publish
-        run: npm publish --provenance --access public
+        run: |
+          echo "npm version: $(npm --version)"
+          npm publish --provenance --access public
