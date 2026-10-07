@@ -4,9 +4,9 @@
 [![npm version](https://img.shields.io/npm/v/@solvejet/whatsapp-cloud-api.svg)](https://www.npmjs.com/package/@solvejet/whatsapp-cloud-api)
 [![license](https://img.shields.io/npm/l/@solvejet/whatsapp-cloud-api.svg)](./LICENSE)
 
-TypeScript SDK for the [WhatsApp Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api) — the Meta-hosted WhatsApp Business Platform. It aims to provide a typed, zero-runtime-dependency client built on the native `fetch` and `FormData` available in Node 20+.
+TypeScript SDK for the [WhatsApp Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api) — the Meta-hosted WhatsApp Business Platform. It provides a typed, zero-runtime-dependency client built on the native `fetch` available in Node 20+.
 
-> **Status: active development.** Outbound messaging is implemented: text, media (image, video, audio, document, sticker), location, the full contacts object (addresses, org, URLs, birthday, structured name parts), templates, interactive buttons and lists with rich headers (text, image, video, document), the interactive CTA URL / flow / location-request / product / product-list senders, reactions, and mark-as-read. Every sender accepts a `replyToMessageId` to thread a reply via message context, and documented limits are validated client-side before a request is sent. **Inbound webhooks** are also implemented: the GET verification handshake, constant-time `X-Hub-Signature-256` validation, and typed parsing of incoming messages and status updates. Media **upload/download** is not implemented yet, and APIs may change before the first stable release.
+> **Status: active development.** Outbound messaging is implemented: text, media (image, video, audio, document, sticker), location, the full contacts object (addresses, org, URLs, birthday, structured name parts), templates, interactive buttons and lists with rich headers (text, image, video, document), the interactive CTA URL / flow / location-request / product / product-list senders, reactions, and mark-as-read. Every sender accepts a `replyToMessageId` to thread a reply via message context, and documented limits are validated client-side before a request is sent. **Inbound webhooks** are also implemented: the GET verification handshake, constant-time `X-Hub-Signature-256` validation, and typed parsing of incoming messages and status updates. Media **upload/download** and template management are not implemented yet. While on `0.x`, minor versions may include breaking changes as the remaining surface lands.
 
 ### Implemented
 
@@ -231,13 +231,17 @@ Prefer `WebhookHandler` when you want the secrets bound once: `const handler = n
 
 ## Roadmap
 
-- Flesh out the Cloud API surface: messages, templates, and media.
-- Publish the first stable release to npm.
-- Python and Rust ports of the SDK are planned to follow the TypeScript release.
+- **Media** upload and download (upload a file, get a media `id`, send it with the media senders above; download inbound media by `id`).
+- **Template management** (create, list, update, delete message templates).
+- **Phone number and WABA management.**
+- Python and Rust ports of the SDK, following the TypeScript release.
 
 ## Documentation
 
-Full documentation will accompany the first feature release. For now, see the inline types and the [WhatsApp Cloud API reference](https://developers.facebook.com/docs/whatsapp/cloud-api).
+The public API is fully typed — your editor's autocomplete and the bundled `.d.ts`
+declarations document every method, option, and payload shape. The examples above
+cover the common flows; for the underlying API semantics, see the
+[WhatsApp Cloud API reference](https://developers.facebook.com/docs/whatsapp/cloud-api).
 
 ## Contributing
 

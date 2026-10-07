@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-07
+
 ### Added
 
 - Project foundation: TypeScript 6 toolchain, tsup dual ESM/CJS build, vitest, ESLint 10 flat config, and Prettier.
@@ -28,4 +30,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Interactive button and list headers now accept the structured `InteractiveHeader` type in addition to a plain string (backward compatible).
 - Removed stale "omitted" notes from the contact types now that the full contacts object is modeled.
 
-[Unreleased]: https://github.com/solvejet/whatsapp-cloud-api/commits/master
+[Unreleased]: https://github.com/solvejet/whatsapp-cloud-api/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/solvejet/whatsapp-cloud-api/releases/tag/v0.1.0
