@@ -60,6 +60,8 @@ jobs:
         run: npm install -g npm@latest
 
       # Publish with the npm CLI so it performs the OIDC token exchange.
-      # access/provenance come from package.json publishConfig.
+      # access/provenance come from package.json publishConfig. (No
+      # --no-git-checks: that is a pnpm flag; npm has no such option and the
+      # CI checkout is already clean.)
       - name: Publish
-        run: npm publish --no-git-checks
+        run: npm publish
