@@ -32,7 +32,9 @@ TypeScript SDK for the [WhatsApp Cloud API](https://developers.facebook.com/docs
 pnpm add @solvejet/whatsapp-cloud-api
 ```
 
-Requires Node.js 20 or newer.
+Requires Node.js 20 or newer. Every release is published from CI with signed
+[npm provenance](https://docs.npmjs.com/generating-provenance-statements); run
+`npm audit signatures` to verify the package traces back to its source build.
 
 ## Usage
 
