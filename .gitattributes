@@ -1,0 +1,16 @@
+# Normalize line endings. Text files are stored with LF in the repository and
+# checked out with LF on every platform, so Prettier's `format:check` and CI
+# behave identically on Windows, macOS, and Linux. Prevents the "LF will be
+# replaced by CRLF" warnings on Windows checkouts.
+* text=auto eol=lf
+
+# Explicitly treat common binary types as binary (never normalized or diffed).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

@@ -23,3 +23,6 @@ coverage/
 .DS_Store
 Thumbs.db
 .agents/
+
+# Git worktrees created for isolated feature work
+.worktrees/
