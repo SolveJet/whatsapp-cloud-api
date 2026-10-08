@@ -4,6 +4,13 @@
 # which the npm CLI (>= 11.5.1) exchanges for a short-lived publish token at
 # publish time.
 #
+# IMPORTANT: use the npm bundled with Node 24 (currently 11.19.x). Do NOT force
+# `npm install -g npm@latest`: npm 12.2.0 was observed to NOT initiate the OIDC
+# token exchange at all (publish failed with ENEEDAUTH despite a textbook-clean
+# .npmrc, the OIDC request env present, and a matching trusted publisher). The
+# Node-24-bundled 11.19.x is OIDC-capable (>= 11.5.1) and is the version npm's
+# own working examples use.
+#
 # The working recipe (verified in npm/documentation#1960 and corroborated by
 # multiple field reports) has three parts, and ALL are required:
 #   1. KEEP `registry-url` on actions/setup-node. npm needs the registry in a
@@ -78,10 +85,9 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      # Trusted publishing needs an OIDC-capable npm CLI (>= 11.5.1). Node 24
-      # ships a recent npm, but pin to latest to be safe.
-      - name: Update npm
-        run: npm install -g npm@latest
+      # NOTE: no `npm install -g npm@latest` here — see the header comment.
+      # Node 24's bundled npm (11.19.x) runs the OIDC exchange correctly; forcing
+      # npm 12.2.0 broke it.
 
       # Strip the empty _authToken line setup-node wrote (keeping the registry
       # line), confirm the OIDC request env is present, then publish. Do NOT set
