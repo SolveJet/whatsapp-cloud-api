@@ -122,16 +122,33 @@ export interface ContactsIncomingMessage extends IncomingMessageBase {
   contacts: IncomingContactCard[];
 }
 
+/**
+ * A Native Flow Message reply, used for interactive submissions such as address
+ * messages. `response_json` is the RAW JSON string of the submitted field
+ * values; it is intentionally left unparsed so a malformed payload never throws
+ * during webhook parsing (callers can `JSON.parse` it).
+ */
+export interface InteractiveNfmReply {
+  /** The flow name, e.g. `address_message`. */
+  name: string;
+  /** The submitted field values as a raw JSON string (not auto-parsed). */
+  response_json: string;
+  /** Optional human-readable summary of the reply. */
+  body?: string;
+}
+
 /** The selection payload of an interactive reply. */
 export interface InteractiveIncomingMessage extends IncomingMessageBase {
   type: 'interactive';
   interactive: {
     /** The kind of interactive reply received. */
-    type: 'button_reply' | 'list_reply';
+    type: 'button_reply' | 'list_reply' | 'nfm_reply';
     /** Present when `type` is `button_reply`. */
     button_reply?: { id: string; title: string };
     /** Present when `type` is `list_reply`. */
     list_reply?: { id: string; title: string; description?: string };
+    /** Present when `type` is `nfm_reply` (e.g. an address-message submission). */
+    nfm_reply?: InteractiveNfmReply;
   };
 }
 

@@ -9,6 +9,8 @@
 import { WhatsAppValidationError } from '../errors.js';
 import type { RequestOptions } from '../types/common.js';
 import type {
+  AddressMessagePayload,
+  AddressMessageValues,
   CaptionedMedia,
   Contact,
   CtaUrlPayload,
@@ -57,7 +59,11 @@ const LIMITS = {
   reactionEmoji: 8,
   flowCta: 20,
   productListItems: 30,
+  addressPostCode: 6,
 } as const;
+
+/** Supported countries for the interactive address message. */
+const ADDRESS_COUNTRIES = ['IN', 'SG'] as const;
 
 /** True when a {@link MediaSource} carries either an `id` or a `link`. */
 const hasMediaSource = (media: MediaSource): boolean =>
@@ -414,6 +420,62 @@ export class MessagesResource {
   }
 
   /**
+   * Sends an interactive address message (supported in India and Singapore),
+   * prompting the user to supply or confirm a delivery address.
+   *
+   * The parameters object (country, pre-filled values, saved addresses, and
+   * validation errors) is serialized into the JSON-encoded `action.parameters`
+   * string the API requires. The submitted address arrives via webhook as an
+   * interactive `nfm_reply`.
+   */
+  sendAddressMessage(
+    to: string,
+    payload: AddressMessagePayload,
+    options?: SendOptions,
+  ): Promise<SendMessageResponse> {
+    this.assertInteractiveText(payload);
+    this.assertAddressCountry(payload.country);
+    if (payload.values !== undefined) {
+      this.assertAddressValues(payload.values);
+    }
+    for (const saved of payload.savedAddresses ?? []) {
+      this.assertAddressValues(saved.value);
+    }
+    const header = payload.header !== undefined ? this.buildHeader(payload.header) : undefined;
+    const parameters = {
+      country: payload.country,
+      ...(payload.values !== undefined ? { values: this.mapAddressValues(payload.values) } : {}),
+      ...(payload.savedAddresses !== undefined
+        ? {
+            saved_addresses: payload.savedAddresses.map((saved) => ({
+              id: saved.id,
+              value: this.mapAddressValues(saved.value),
+            })),
+          }
+        : {}),
+      ...(payload.validationErrors !== undefined
+        ? { validation_errors: payload.validationErrors }
+        : {}),
+    };
+    return this.send(
+      to,
+      'interactive',
+      {
+        type: 'address_message',
+        ...(header !== undefined ? { header } : {}),
+        body: { text: payload.body },
+        ...(payload.footer !== undefined ? { footer: { text: payload.footer } } : {}),
+        action: {
+          name: 'address_message',
+          parameters: JSON.stringify(parameters),
+        },
+      },
+      undefined,
+      options,
+    );
+  }
+
+  /**
    * Reacts to a previously received message with an emoji.
    *
    * Passing an empty `emoji` removes a previously applied reaction.
@@ -446,6 +508,27 @@ export class MessagesResource {
         messaging_product: 'whatsapp',
         status: 'read',
         message_id: messageId,
+      },
+    });
+  }
+
+  /**
+   * Marks a received message as read and shows a typing indicator to the user.
+   *
+   * The indicator is dismissed when you send a message or after about 25
+   * seconds. `messageId` is the WAMID of the inbound message being replied to.
+   * Only the `text` indicator type is currently supported.
+   */
+  sendTypingIndicator(messageId: string, phoneNumberId?: string): Promise<SendMessageResponse> {
+    const id = this.resolvePhoneNumberId(phoneNumberId);
+    return this.request<SendMessageResponse>({
+      method: 'POST',
+      path: `${id}/messages`,
+      body: {
+        messaging_product: 'whatsapp',
+        status: 'read',
+        message_id: messageId,
+        typing_indicator: { type: 'text' },
       },
     });
   }
@@ -636,5 +719,50 @@ export class MessagesResource {
         `A product list supports at most ${LIMITS.productListItems} product items (received ${totalItems}).`,
       );
     }
+  }
+
+  /** Validates that an address message carries a supported country (IN or SG). */
+  private assertAddressCountry(country: string): void {
+    if (!(ADDRESS_COUNTRIES as readonly string[]).includes(country)) {
+      throw new WhatsAppValidationError(
+        `An address message requires a "country" of ${ADDRESS_COUNTRIES.join(' or ')} (received "${country}").`,
+      );
+    }
+  }
+
+  /** Validates the length-constrained postal code fields of an address value. */
+  private assertAddressValues(values: AddressMessageValues): void {
+    if (values.inPinCode !== undefined) {
+      this.assertLength(values.inPinCode, LIMITS.addressPostCode, 'Address in_pin_code');
+    }
+    if (values.sgPostCode !== undefined) {
+      this.assertLength(values.sgPostCode, LIMITS.addressPostCode, 'Address sg_post_code');
+    }
+  }
+
+  /** Maps camelCase SDK address fields to the snake_case API shape, omitting undefined. */
+  private mapAddressValues(values: AddressMessageValues): Record<string, string> {
+    const entries: [string, string | undefined][] = [
+      ['name', values.name],
+      ['phone_number', values.phoneNumber],
+      ['address', values.address],
+      ['city', values.city],
+      ['in_pin_code', values.inPinCode],
+      ['house_number', values.houseNumber],
+      ['floor_number', values.floorNumber],
+      ['tower_number', values.towerNumber],
+      ['building_name', values.buildingName],
+      ['landmark_area', values.landmarkArea],
+      ['state', values.state],
+      ['sg_post_code', values.sgPostCode],
+      ['unit_number', values.unitNumber],
+    ];
+    const mapped: Record<string, string> = {};
+    for (const [key, value] of entries) {
+      if (value !== undefined) {
+        mapped[key] = value;
+      }
+    }
+    return mapped;
   }
 }

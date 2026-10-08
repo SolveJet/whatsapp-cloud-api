@@ -6,15 +6,15 @@
 
 TypeScript SDK for the [WhatsApp Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api) — the Meta-hosted WhatsApp Business Platform. It provides a typed, zero-runtime-dependency client built on the native `fetch` available in Node 20+.
 
-> **Status: active development.** Outbound messaging is implemented: text, media (image, video, audio, document, sticker), location, the full contacts object (addresses, org, URLs, birthday, structured name parts), templates, interactive buttons and lists with rich headers (text, image, video, document), the interactive CTA URL / flow / location-request / product / product-list senders, reactions, and mark-as-read. Every sender accepts a `replyToMessageId` to thread a reply via message context, and documented limits are validated client-side before a request is sent. **Inbound webhooks** are also implemented: the GET verification handshake, constant-time `X-Hub-Signature-256` validation, and typed parsing of incoming messages and status updates. **Media** upload and download are also implemented: upload a file to get a reusable media `id`, resolve its short-lived download URL, download the bytes with the token, and delete it. Template management is not implemented yet. While on `0.x`, minor versions may include breaking changes as the remaining surface lands.
+> **Status: active development.** Outbound messaging is implemented: text, media (image, video, audio, document, sticker), location, the full contacts object (addresses, org, URLs, birthday, structured name parts), templates, interactive buttons and lists with rich headers (text, image, video, document), the interactive CTA URL / flow / location-request / product / product-list / address-message senders, reactions, mark-as-read, and the typing indicator. Every sender accepts a `replyToMessageId` to thread a reply via message context, and documented limits are validated client-side before a request is sent. **Inbound webhooks** are also implemented: the GET verification handshake, constant-time `X-Hub-Signature-256` validation, and typed parsing of incoming messages and status updates. **Media** upload and download are also implemented: upload a file to get a reusable media `id`, resolve its short-lived download URL, download the bytes with the token, and delete it. Template management is not implemented yet. While on `0.x`, minor versions may include breaking changes as the remaining surface lands.
 
 ### Implemented
 
 - **Text and media:** `sendText`, `sendImage`, `sendVideo`, `sendAudio`, `sendDocument`, `sendSticker` (media is referenced by an uploaded `id` or a public `link`).
 - **Location and contacts:** `sendLocation`, `sendContacts` with the full contact object (name parts, `addresses`, `org`, `urls`, `birthday`).
 - **Templates:** `sendTemplate`.
-- **Interactive:** `sendInteractiveButtons`, `sendInteractiveList` (with text/image/video/document headers), `sendInteractiveCtaUrl`, `sendInteractiveFlow`, `sendLocationRequest`, `sendProduct`, `sendProductList`.
-- **Other:** `sendReaction`, `markAsRead`.
+- **Interactive:** `sendInteractiveButtons`, `sendInteractiveList` (with text/image/video/document headers), `sendInteractiveCtaUrl`, `sendInteractiveFlow`, `sendLocationRequest`, `sendProduct`, `sendProductList`, `sendAddressMessage` (India and Singapore).
+- **Other:** `sendReaction`, `markAsRead`, `sendTypingIndicator` (mark as read and show a typing indicator).
 - **Media:** `client.media.upload`, `getUrl`, `download`/`downloadByUrl`, and `delete` (upload a file for a reusable `id`, resolve the short-lived download URL, fetch bytes with the token, and delete).
 - **Reply/context:** pass `{ replyToMessageId }` to any sender to reply to a prior message.
 - **Webhooks:** `verifyWebhook`/`verifyWebhookQuery` (GET handshake), `verifySignature` (constant-time `X-Hub-Signature-256`), `parseWebhook`/`extractMessages`/`extractStatuses` with a typed `IncomingMessage` union and `MessageStatus`, and a framework-agnostic `WebhookHandler`.
@@ -87,6 +87,30 @@ await client.messages.sendInteractiveCtaUrl('15551234567', {
   displayText: 'Open store',
   url: 'https://example.com/store',
 });
+```
+
+### Address message (India and Singapore)
+
+Prompts the user for a delivery address. `country` is required (`IN` or `SG`),
+and camelCase fields are mapped to the API's snake_case shape for you. The
+submitted address arrives via webhook as an interactive `nfm_reply` whose
+`response_json` is a raw JSON string you parse yourself.
+
+```ts
+await client.messages.sendAddressMessage('15551234567', {
+  body: 'Where should we deliver your order?',
+  country: 'IN',
+  values: { name: 'Ada Lovelace', phoneNumber: '15551234567', inPinCode: '560001' },
+});
+```
+
+### Typing indicator
+
+Mark an inbound message as read and show a typing indicator. It is dismissed
+once you send a message or after about 25 seconds.
+
+```ts
+await client.messages.sendTypingIndicator('wamid.HBgL...');
 ```
 
 ### Media
@@ -255,8 +279,12 @@ app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
       case 'interactive':
         if (message.interactive.type === 'button_reply') {
           console.log(`button ${message.interactive.button_reply?.id}`);
-        } else {
+        } else if (message.interactive.type === 'list_reply') {
           console.log(`list ${message.interactive.list_reply?.id}`);
+        } else if (message.interactive.type === 'nfm_reply') {
+          // e.g. an address-message submission; response_json is a raw string.
+          const fields = JSON.parse(message.interactive.nfm_reply?.response_json ?? '{}');
+          console.log(`nfm_reply ${message.interactive.nfm_reply?.name}`, fields);
         }
         break;
       default:

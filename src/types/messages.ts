@@ -277,6 +277,73 @@ export interface ProductPayload {
   footer?: string;
 }
 
+/**
+ * Address fields for an {@link AddressMessagePayload}. Fields map to snake_case
+ * API keys. Some fields are supported only in specific countries (noted below).
+ *
+ * @see https://developers.facebook.com/docs/whatsapp/cloud-api/messages/address-messages
+ */
+export interface AddressMessageValues {
+  /** Full name (India, Singapore). */
+  name?: string;
+  /** Phone number (India, Singapore). Maps to `phone_number`. */
+  phoneNumber?: string;
+  /** Street address (India, Singapore). */
+  address?: string;
+  /** City (India, Singapore). */
+  city?: string;
+  /** PIN code (India only). Maps to `in_pin_code`; max length 6. */
+  inPinCode?: string;
+  /** House number (India only). Maps to `house_number`. */
+  houseNumber?: string;
+  /** Floor number (India only). Maps to `floor_number`. */
+  floorNumber?: string;
+  /** Tower number (India only). Maps to `tower_number`. */
+  towerNumber?: string;
+  /** Building name (India only). Maps to `building_name`. */
+  buildingName?: string;
+  /** Landmark or area (India only). Maps to `landmark_area`. */
+  landmarkArea?: string;
+  /** State (India only). */
+  state?: string;
+  /** Postal code (Singapore only). Maps to `sg_post_code`; max length 6. */
+  sgPostCode?: string;
+  /** Unit number (Singapore only). Maps to `unit_number`. */
+  unitNumber?: string;
+}
+
+/** A previously saved address offered to the user in an address message. */
+export interface AddressMessageSavedAddress {
+  /** Identifier echoed back when the saved address is selected. */
+  id: string;
+  /** The address field values for this saved address. */
+  value: AddressMessageValues;
+}
+
+/**
+ * Options for {@link MessagesResource.sendAddressMessage}.
+ *
+ * `country` is required and must be `IN` (India) or `SG` (Singapore). The SDK
+ * serializes the parameters (country, values, saved addresses, validation
+ * errors) into the JSON-encoded `action.parameters` string the API expects.
+ */
+export interface AddressMessagePayload {
+  /** Body text shown above the address form. */
+  body: string;
+  /** Supported country: `IN` (India) or `SG` (Singapore). */
+  country: 'IN' | 'SG';
+  /** Pre-filled address field values. Maps to `values`. */
+  values?: AddressMessageValues;
+  /** Previously saved addresses to offer. Maps to `saved_addresses`. */
+  savedAddresses?: AddressMessageSavedAddress[];
+  /** Per-field validation error messages keyed by API field name. Maps to `validation_errors`. */
+  validationErrors?: Record<string, string>;
+  /** Optional header: a plain string (text) or a structured text/media header. */
+  header?: InteractiveHeader;
+  /** Optional footer text. */
+  footer?: string;
+}
+
 /** A grouping of products within an interactive product list. */
 export interface ProductSection {
   title?: string;
