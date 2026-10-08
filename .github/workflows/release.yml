@@ -4,16 +4,19 @@
 # which the npm CLI (>= 11.5.1) exchanges for a short-lived publish token at
 # publish time.
 #
-# IMPORTANT: we deliberately do NOT set `registry-url` on actions/setup-node.
-# When `registry-url` is set, setup-node writes
-# `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` into the runner .npmrc.
-# With no NODE_AUTH_TOKEN (the intended state for trusted publishing), that
-# placeholder expands to empty, npm treats it as "auth already configured",
-# skips the OIDC exchange, and the anonymous publish fails with ENEEDAUTH/E404.
-# By omitting `registry-url` no auth line is written, so npm detects the OIDC
-# env (ACTIONS_ID_TOKEN_REQUEST_*) and runs the token exchange. The registry is
-# passed explicitly on the publish command. Ref:
-# https://github.com/npm/documentation/issues/1960
+# The working recipe (verified in npm/documentation#1960 and corroborated by
+# multiple field reports) has three parts, and ALL are required:
+#   1. KEEP `registry-url` on actions/setup-node. npm needs the registry in a
+#      config file to know where to run the OIDC token exchange; without it the
+#      CLI does not attempt the exchange and fails with ENEEDAUTH.
+#   2. STRIP the `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` line that
+#      setup-node writes. With no NODE_AUTH_TOKEN that placeholder expands to
+#      empty; npm treats the empty token as "auth configured", skips OIDC, and
+#      fails with ENEEDAUTH/E404. Removing the line (while keeping the registry
+#      line) lets the OIDC exchange run.
+#   3. NEVER set NODE_AUTH_TOKEN (not even to ""). An empty value is still a
+#      value and defeats OIDC.
+# Ref: https://github.com/npm/documentation/issues/1960
 #
 # One-time setup on npmjs.com (Package -> Settings -> Trusted Publisher ->
 # GitHub Actions): Organization/user "solvejet", Repository
@@ -46,13 +49,15 @@ jobs:
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
 
-      # No `registry-url` here — see the header comment. Setting it writes an
-      # empty _authToken line that short-circuits the OIDC exchange.
+      # Keep `registry-url` so the registry is written to .npmrc — npm needs it
+      # to target the OIDC exchange. The empty `_authToken` line it also writes
+      # is stripped in the publish step below.
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -78,20 +83,21 @@ jobs:
       - name: Update npm
         run: npm install -g npm@latest
 
-      # Guard: fail loudly if setup-node (or anything else) left an _authToken
-      # line in any .npmrc, since that silently disables OIDC. Then publish,
-      # pointing npm at the public registry explicitly (no registry-url).
+      # Strip the empty _authToken line setup-node wrote (keeping the registry
+      # line), confirm the OIDC request env is present, then publish. Do NOT set
+      # NODE_AUTH_TOKEN. Print the resulting .npmrc for diagnosis.
       - name: Publish (OIDC trusted publishing)
         run: |
           echo "npm version: $(npm --version)"
           for f in "${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}" "$HOME/.npmrc" "$PWD/.npmrc"; do
-            if [ -f "$f" ] && grep -q '_authToken' "$f"; then
-              echo "Removing _authToken line from $f (would disable OIDC)"
+            if [ -f "$f" ]; then
+              echo "--- before: $f ---"; cat "$f" || true
               sed -i '/_authToken/d;/always-auth/d' "$f"
+              echo "--- after:  $f ---"; cat "$f" || true
             fi
           done
           if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
             echo "::error::ACTIONS_ID_TOKEN_REQUEST_URL is not set — OIDC cannot run. Check 'id-token: write' permission."
             exit 1
           fi
-          npm publish --access public --registry=https://registry.npmjs.org/
+          npm publish --access public
