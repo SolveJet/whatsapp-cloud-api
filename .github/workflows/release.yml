@@ -89,6 +89,30 @@ jobs:
       # Node 24's bundled npm (11.19.x) runs the OIDC exchange correctly; forcing
       # npm 12.2.0 broke it.
 
+      # TEMPORARY DIAGNOSTIC: perform the OIDC token exchange by hand to get the
+      # real HTTP status (npm's CLI hides it behind a misleading ENEEDAUTH).
+      # Mint a GitHub OIDC token with the npm audience, decode its claims, and
+      # POST it to npm's exchange endpoint for this package. 201 = trust config
+      # works (CLI is the problem); 404 = package/trust config not found or
+      # mismatched; 403 = workflow not trusted. No secrets are printed.
+      # Remove this step once publishing works.
+      - name: Diagnose OIDC exchange
+        run: |
+          set -e
+          AUD="npm:registry.npmjs.org"
+          TOKEN=$(curl -sf -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUD" | node -e 'const d=require("fs").readFileSync(0,"utf8");process.stdout.write(JSON.parse(d).value)')
+          echo "Minted OIDC token: $([ -n "$TOKEN" ] && echo yes || echo NO)"
+          # Decode and print the claims (payload only, no signature) for tracing.
+          echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | node -e 'const d=require("fs").readFileSync(0,"utf8");const c=JSON.parse(d);console.log(JSON.stringify({iss:c.iss,aud:c.aud,sub:c.sub,repository:c.repository,repository_owner:c.repository_owner,workflow_ref:c.workflow_ref,event_name:c.event_name,ref:c.ref},null,2))' || echo "claim decode failed"
+          PKG="@solvejet%2fwhatsapp-cloud-api"
+          echo "POST exchange for $PKG ..."
+          STATUS=$(curl -s -o /tmp/exch.json -w "%{http_code}" \
+            -X POST "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/$PKG" \
+            -H "Authorization: Bearer $TOKEN")
+          echo "Exchange HTTP status: $STATUS"
+          echo "Response body:"; cat /tmp/exch.json | node -e 'try{const d=require("fs").readFileSync(0,"utf8");const j=JSON.parse(d);delete j.token;console.log(JSON.stringify(j,null,2))}catch(e){console.log("(non-JSON or empty body)")}'
+
       # Strip the empty _authToken line setup-node wrote (keeping the registry
       # line), confirm the OIDC request env is present, then publish. Do NOT set
       # NODE_AUTH_TOKEN. Print the resulting .npmrc for diagnosis.
