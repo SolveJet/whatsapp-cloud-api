@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-08
+
+### Fixed
+
+- npm publish failed provenance validation with `E422` because `package.json` URLs used the lowercase owner `solvejet` while the signed provenance (from the GitHub OIDC claim) uses the canonical `SolveJet`; npm requires `repository.url` to match the provenance exactly, case-sensitively. Corrected `repository.url`, `homepage`, `bugs.url`, and the contributor URL to `SolveJet`. This is the first version actually published to npm with provenance; `0.3.0` was tagged and released on GitHub but never reached npm due to this error.
+
 ## [0.3.0] - 2026-10-08
+
+> Note: `0.3.0` was tagged and released on GitHub but never published to npm — its publish failed provenance validation (see `0.3.1`). The features below ship in `0.3.1`.
 
 ### Added
 
@@ -55,7 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Interactive button and list headers now accept the structured `InteractiveHeader` type in addition to a plain string (backward compatible).
 - Removed stale "omitted" notes from the contact types now that the full contacts object is modeled.
 
-[Unreleased]: https://github.com/solvejet/whatsapp-cloud-api/compare/v0.3.0...HEAD
-[0.3.0]: https://github.com/solvejet/whatsapp-cloud-api/compare/v0.2.0...v0.3.0
+[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/solvejet/whatsapp-cloud-api/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/solvejet/whatsapp-cloud-api/releases/tag/v0.1.0

@@ -1,6 +1,6 @@
 {
   "name": "@solvejet/whatsapp-cloud-api",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "TypeScript SDK for the WhatsApp Cloud API (Meta-hosted WhatsApp Business Platform)",
   "keywords": [
     "whatsapp",
@@ -11,18 +11,18 @@
     "sdk",
     "typescript"
   ],
-  "homepage": "https://github.com/solvejet/whatsapp-cloud-api#readme",
+  "homepage": "https://github.com/SolveJet/whatsapp-cloud-api#readme",
   "bugs": {
-    "url": "https://github.com/solvejet/whatsapp-cloud-api/issues"
+    "url": "https://github.com/SolveJet/whatsapp-cloud-api/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/solvejet/whatsapp-cloud-api.git"
+    "url": "git+https://github.com/SolveJet/whatsapp-cloud-api.git"
   },
   "license": "MIT",
   "author": "SolveJet",
   "contributors": [
-    "SolveJet (https://github.com/solvejet)"
+    "SolveJet (https://github.com/SolveJet)"
   ],
   "type": "module",
   "main": "./dist/index.cjs",
