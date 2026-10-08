@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Release workflow: npm OIDC trusted publishing now works end to end. The publish was failing with a misleading `ENEEDAUTH`; the actual cause was a case mismatch in the npm trusted-publisher config (`solvejet` vs the canonical GitHub owner `SolveJet`), which made npm's token exchange return `404 package not found`. The workflow now uses Node 24's bundled npm, keeps `registry-url` while stripping the empty `_authToken` line setup-node writes, never sets `NODE_AUTH_TOKEN`, and gained a `workflow_dispatch` trigger for manual re-runs. Trusted-publisher field names are case-sensitive and must match the GitHub OIDC claims exactly.
+
 ## [0.2.0] - 2026-10-07
 
 ### Added

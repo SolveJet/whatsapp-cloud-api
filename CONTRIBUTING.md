@@ -52,7 +52,28 @@ pnpm run build
 
 - Follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages (e.g. `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`).
 - Keep pull requests focused and fill out the PR template.
-- **All CI checks must pass** before a PR can be merged. CI runs the same lint, format, typecheck, test, and build steps on Node 20 and 22.
+- **All CI checks must pass** before a PR can be merged. CI runs the same lint, format, typecheck, test, and build steps on Node 22 and 24, plus a Node 20 smoke test that imports the built ESM and CJS artifacts (the published package supports Node 20+).
+
+## Releasing
+
+Publishing to npm is automated via GitHub Actions and **npm OIDC Trusted Publishing** — there is no `NPM_TOKEN` secret. A short-lived token is minted from the workflow's OIDC identity at publish time.
+
+To cut a release:
+
+1. Bump `version` in `package.json` and update the `CHANGELOG.md`.
+2. Merge to `master`, then create a GitHub Release whose tag is `v<version>` (e.g. `v0.3.0`). The `release.yml` workflow verifies the tag matches `package.json`, builds, and publishes.
+3. You can also trigger `release.yml` manually from the Actions tab (`workflow_dispatch`) to retry a failed publish without re-tagging.
+
+The npm trusted-publisher configuration (npmjs.com → package → Settings → Trusted Publisher) must match the GitHub OIDC claims **exactly, and all fields are case-sensitive**:
+
+| Field                | Value                |
+| -------------------- | -------------------- |
+| Organization or user | `SolveJet`           |
+| Repository           | `whatsapp-cloud-api` |
+| Workflow filename    | `release.yml`        |
+| Environment name     | (empty)              |
+
+A casing mismatch (e.g. `solvejet`) makes npm's token exchange return `404 package not found`, which the npm CLI then surfaces as a misleading `ENEEDAUTH`. See the header comment in [`.github/workflows/release.yml`](./.github/workflows/release.yml) for the full rationale.
 
 ## Code of Conduct
 

@@ -1,39 +1,29 @@
 # Release workflow — publishes the package to npm via OIDC Trusted Publishing.
 #
 # No NPM_TOKEN is required. Authentication uses GitHub Actions' OIDC identity,
-# which the npm CLI (>= 11.5.1) exchanges for a short-lived publish token at
-# publish time.
+# which the npm CLI (>= 11.5.1, bundled with Node 24) exchanges for a
+# short-lived publish token at publish time.
 #
-# IMPORTANT: use the npm bundled with Node 24 (currently 11.19.x). Do NOT force
-# `npm install -g npm@latest`: npm 12.2.0 was observed to NOT initiate the OIDC
-# token exchange at all (publish failed with ENEEDAUTH despite a textbook-clean
-# .npmrc, the OIDC request env present, and a matching trusted publisher). The
-# Node-24-bundled 11.19.x is OIDC-capable (>= 11.5.1) and is the version npm's
-# own working examples use.
+# Trusted publisher setup on npmjs.com (Package -> Settings -> Trusted Publisher
+# -> GitHub Actions). ALL fields are CASE-SENSITIVE and must match the GitHub
+# OIDC token claims exactly:
+#   Organization or user: SolveJet         (canonical GitHub org casing)
+#   Repository:           whatsapp-cloud-api
+#   Workflow filename:    release.yml
+#   Environment name:     (empty)
+# A casing mismatch (e.g. "solvejet") makes npm's token exchange return 404
+# "package not found", which the npm CLI then reports as a misleading ENEEDAUTH.
 #
-# The working recipe (verified in npm/documentation#1960 and corroborated by
-# multiple field reports) has three parts, and ALL are required:
-#   1. KEEP `registry-url` on actions/setup-node. npm needs the registry in a
-#      config file to know where to run the OIDC token exchange; without it the
-#      CLI does not attempt the exchange and fails with ENEEDAUTH.
-#   2. STRIP the `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` line that
-#      setup-node writes. With no NODE_AUTH_TOKEN that placeholder expands to
-#      empty; npm treats the empty token as "auth configured", skips OIDC, and
-#      fails with ENEEDAUTH/E404. Removing the line (while keeping the registry
-#      line) lets the OIDC exchange run.
-#   3. NEVER set NODE_AUTH_TOKEN (not even to ""). An empty value is still a
-#      value and defeats OIDC.
-# Ref: https://github.com/npm/documentation/issues/1960
-#
-# One-time setup on npmjs.com (Package -> Settings -> Trusted Publisher ->
-# GitHub Actions): Organization/user "solvejet", Repository
-# "whatsapp-cloud-api", Workflow filename "release.yml", Environment name EMPTY.
+# One setup-node quirk is handled below: with `registry-url` set, setup-node
+# writes `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` into .npmrc. With
+# no NODE_AUTH_TOKEN that expands to empty, npm treats it as configured auth and
+# skips OIDC. We strip that line (keeping the registry line) before publishing,
+# and never set NODE_AUTH_TOKEN. Ref: https://github.com/npm/documentation/issues/1960
 #
 # Triggers:
 #   - release: published  -> normal path, publishes on a GitHub release.
-#   - workflow_dispatch    -> manual re-run (e.g. to validate the trusted
-#                             publisher or retry a failed publish) without
-#                             creating a new tag/release.
+#   - workflow_dispatch   -> manual re-run (retry a publish / validate trusted
+#                            publisher) without creating a new tag/release.
 name: Release
 
 on:
@@ -85,45 +75,15 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      # NOTE: no `npm install -g npm@latest` here — see the header comment.
-      # Node 24's bundled npm (11.19.x) runs the OIDC exchange correctly; forcing
-      # npm 12.2.0 broke it.
-
-      # TEMPORARY DIAGNOSTIC: perform the OIDC token exchange by hand to get the
-      # real HTTP status (npm's CLI hides it behind a misleading ENEEDAUTH).
-      # Mint a GitHub OIDC token with the npm audience, decode its claims, and
-      # POST it to npm's exchange endpoint for this package. 201 = trust config
-      # works (CLI is the problem); 404 = package/trust config not found or
-      # mismatched; 403 = workflow not trusted. No secrets are printed.
-      # Remove this step once publishing works.
-      - name: Diagnose OIDC exchange
-        run: |
-          set -e
-          AUD="npm:registry.npmjs.org"
-          TOKEN=$(curl -sf -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUD" | node -e 'const d=require("fs").readFileSync(0,"utf8");process.stdout.write(JSON.parse(d).value)')
-          echo "Minted OIDC token: $([ -n "$TOKEN" ] && echo yes || echo NO)"
-          # Decode and print the claims (payload only, no signature) for tracing.
-          echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | node -e 'const d=require("fs").readFileSync(0,"utf8");const c=JSON.parse(d);console.log(JSON.stringify({iss:c.iss,aud:c.aud,sub:c.sub,repository:c.repository,repository_owner:c.repository_owner,workflow_ref:c.workflow_ref,event_name:c.event_name,ref:c.ref},null,2))' || echo "claim decode failed"
-          PKG="@solvejet%2fwhatsapp-cloud-api"
-          echo "POST exchange for $PKG ..."
-          STATUS=$(curl -s -o /tmp/exch.json -w "%{http_code}" \
-            -X POST "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/$PKG" \
-            -H "Authorization: Bearer $TOKEN")
-          echo "Exchange HTTP status: $STATUS"
-          echo "Response body:"; cat /tmp/exch.json | node -e 'try{const d=require("fs").readFileSync(0,"utf8");const j=JSON.parse(d);delete j.token;console.log(JSON.stringify(j,null,2))}catch(e){console.log("(non-JSON or empty body)")}'
-
       # Strip the empty _authToken line setup-node wrote (keeping the registry
       # line), confirm the OIDC request env is present, then publish. Do NOT set
-      # NODE_AUTH_TOKEN. Print the resulting .npmrc for diagnosis.
+      # NODE_AUTH_TOKEN — an empty value defeats OIDC. Uses Node 24's bundled npm.
       - name: Publish (OIDC trusted publishing)
         run: |
           echo "npm version: $(npm --version)"
           for f in "${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}" "$HOME/.npmrc" "$PWD/.npmrc"; do
             if [ -f "$f" ]; then
-              echo "--- before: $f ---"; cat "$f" || true
               sed -i '/_authToken/d;/always-auth/d' "$f"
-              echo "--- after:  $f ---"; cat "$f" || true
             fi
           done
           if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
