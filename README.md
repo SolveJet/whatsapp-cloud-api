@@ -1,30 +1,38 @@
 # @solvejet/whatsapp-cloud-api
 
-[![CI](https://github.com/solvejet/whatsapp-cloud-api/actions/workflows/ci.yml/badge.svg)](https://github.com/solvejet/whatsapp-cloud-api/actions/workflows/ci.yml)
+[![CI](https://github.com/SolveJet/whatsapp-cloud-api/actions/workflows/ci.yml/badge.svg)](https://github.com/SolveJet/whatsapp-cloud-api/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@solvejet/whatsapp-cloud-api.svg)](https://www.npmjs.com/package/@solvejet/whatsapp-cloud-api)
 [![license](https://img.shields.io/npm/l/@solvejet/whatsapp-cloud-api.svg)](./LICENSE)
 
-TypeScript SDK for the [WhatsApp Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api) — the Meta-hosted WhatsApp Business Platform. It provides a typed, zero-runtime-dependency client built on the native `fetch` available in Node 20+.
+A typed, zero-runtime-dependency TypeScript SDK for the [WhatsApp Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api) — the Meta-hosted WhatsApp Business Platform. Built on the native `fetch` in Node.js 20+.
 
-> **Status: active development.** Outbound messaging is implemented: text, media (image, video, audio, document, sticker), location, the full contacts object (addresses, org, URLs, birthday, structured name parts), templates, interactive buttons and lists with rich headers (text, image, video, document), the interactive CTA URL / flow / location-request / product / product-list / address-message senders, reactions, mark-as-read, and the typing indicator. Every sender accepts a `replyToMessageId` to thread a reply via message context, and documented limits are validated client-side before a request is sent. **Inbound webhooks** are also implemented: the GET verification handshake, constant-time `X-Hub-Signature-256` validation, and typed parsing of incoming messages and status updates. **Media** upload and download are also implemented: upload a file to get a reusable media `id`, resolve its short-lived download URL, download the bytes with the token, and delete it. Template management is not implemented yet. While on `0.x`, minor versions may include breaking changes as the remaining surface lands.
+- **Zero runtime dependencies** — just the platform `fetch`/`AbortController`.
+- **Fully typed** — every method, option, and payload ships with `.d.ts` declarations.
+- **Dual package** — native ESM and CommonJS builds.
+- **Fail-fast validation** — documented API limits are checked client-side before a request is sent; nothing is silently truncated.
+- **Typed error hierarchy** — rate limits, re-engagement, auth, and validation errors are distinct classes.
+- **Signed provenance** — every release is published from CI with [npm provenance](https://docs.npmjs.com/generating-provenance-statements).
 
-### Implemented
+> **Status: active development (`0.x`).** Outbound messaging, inbound webhooks, and the media lifecycle are implemented. Template management and phone-number/WABA management are not yet available (see the [Roadmap](#roadmap)). While on `0.x`, minor versions may include breaking changes as the remaining surface lands.
 
-- **Text and media:** `sendText`, `sendImage`, `sendVideo`, `sendAudio`, `sendDocument`, `sendSticker` (media is referenced by an uploaded `id` or a public `link`).
-- **Location and contacts:** `sendLocation`, `sendContacts` with the full contact object (name parts, `addresses`, `org`, `urls`, `birthday`).
-- **Templates:** `sendTemplate`.
-- **Interactive:** `sendInteractiveButtons`, `sendInteractiveList` (with text/image/video/document headers), `sendInteractiveCtaUrl`, `sendInteractiveFlow`, `sendLocationRequest`, `sendProduct`, `sendProductList`, `sendAddressMessage` (India and Singapore).
-- **Other:** `sendReaction`, `markAsRead`, `sendTypingIndicator` (mark as read and show a typing indicator).
-- **Media:** `client.media.upload`, `getUrl`, `download`/`downloadByUrl`, and `delete` (upload a file for a reusable `id`, resolve the short-lived download URL, fetch bytes with the token, and delete).
-- **Reply/context:** pass `{ replyToMessageId }` to any sender to reply to a prior message.
-- **Webhooks:** `verifyWebhook`/`verifyWebhookQuery` (GET handshake), `verifySignature` (constant-time `X-Hub-Signature-256`), `parseWebhook`/`extractMessages`/`extractStatuses` with a typed `IncomingMessage` union and `MessageStatus`, and a framework-agnostic `WebhookHandler`.
-- **Client-side validation:** body/footer/header lengths, button counts and ids, list section/row limits, reaction emoji, flow CTA, and product-list item counts are checked before the request, raising `WhatsAppValidationError` with a clear field + limit message. Nothing is silently truncated.
-- **Typed errors:** `WhatsAppApiError`, `WhatsAppAuthenticationError`, `WhatsAppRateLimitError`, `WhatsAppReEngagementError`, `WhatsAppRequestError`, `WhatsAppValidationError`, and `WhatsAppWebhookError`.
+## Contents
 
-### Not yet implemented
-
-- Template management.
-- Phone number and WABA management.
+- [Install](#install)
+- [Quick start](#quick-start)
+- [Configuration](#configuration)
+- [Feature overview](#feature-overview)
+- [Messaging](#messaging)
+  - [Replying to a message](#replying-to-a-message)
+  - [Interactive call-to-action URL](#interactive-call-to-action-url)
+  - [Address message (India and Singapore)](#address-message-india-and-singapore)
+  - [Typing indicator](#typing-indicator)
+- [Media](#media)
+- [Error handling](#error-handling)
+- [Webhooks](#webhooks)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Security](#security)
+- [License](#license)
 
 ## Install
 
@@ -34,9 +42,10 @@ pnpm add @solvejet/whatsapp-cloud-api
 
 Requires Node.js 20 or newer. Every release is published from CI with signed
 [npm provenance](https://docs.npmjs.com/generating-provenance-statements); run
-`npm audit signatures` to verify the package traces back to its source build.
+`npm audit signatures` after installing to verify the package traces back to its
+source build.
 
-## Usage
+## Quick start
 
 ```ts
 import { WhatsAppClient } from '@solvejet/whatsapp-cloud-api';
@@ -49,7 +58,66 @@ const client = new WhatsAppClient({
 // Send a plain text message.
 const res = await client.messages.sendText('15551234567', 'Hello from the SDK');
 console.log(res.messages[0]?.id); // the WhatsApp message ID (WAMID)
+```
 
+## Configuration
+
+`WhatsAppClient` takes a single configuration object. Only `accessToken` is
+required; everything else has a sensible default.
+
+| Option              | Type     | Default                      | Description                                                                      |
+| ------------------- | -------- | ---------------------------- | -------------------------------------------------------------------------------- |
+| `accessToken`       | `string` | — (required)                 | Permanent or temporary access token used to authenticate requests.               |
+| `phoneNumberId`     | `string` | —                            | Default sender phone number ID for messaging and media calls.                    |
+| `businessAccountId` | `string` | —                            | WhatsApp Business Account (WABA) ID. Reserved for upcoming management APIs.      |
+| `apiVersion`        | `string` | `v23.0`                      | Graph API version to target.                                                     |
+| `baseUrl`           | `string` | `https://graph.facebook.com` | Base URL for the Graph API (override for a proxy or a mock).                     |
+| `timeoutMs`         | `number` | `30000`                      | Per-attempt request timeout in milliseconds.                                     |
+| `maxRetries`        | `number` | `2`                          | Max retries on `429`/`5xx`/network errors (total attempts = `maxRetries` + `1`). |
+
+The defaults are exported as `DEFAULT_API_VERSION`, `DEFAULT_BASE_URL`,
+`DEFAULT_TIMEOUT_MS`, and `DEFAULT_MAX_RETRIES`.
+
+```ts
+const client = new WhatsAppClient({
+  accessToken: process.env.WHATSAPP_ACCESS_TOKEN!,
+  phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID!,
+  businessAccountId: process.env.WHATSAPP_WABA_ID,
+  apiVersion: 'v23.0',
+  timeoutMs: 15_000,
+  maxRetries: 3,
+});
+
+client.getPhoneNumberId(); // the configured default sender, if any
+client.getApiVersion(); // 'v23.0'
+client.getBaseUrl(); // 'https://graph.facebook.com/v23.0'
+```
+
+**Per-call phone number override.** Every message and media method accepts an
+optional trailing `phoneNumberId` so a single client can send from multiple
+numbers. When omitted, the client's configured `phoneNumberId` is used; if
+neither is set, the call throws `WhatsAppValidationError`.
+
+The HTTP core retries idempotent failures (`429`, `5xx`, and network/timeout
+errors) with jittered exponential backoff, honoring a `Retry-After` header when
+present.
+
+## Feature overview
+
+- **Text and media:** `sendText`, `sendImage`, `sendVideo`, `sendAudio`, `sendDocument`, `sendSticker` (media is referenced by an uploaded `id` or a public `link`).
+- **Location and contacts:** `sendLocation`, `sendContacts` with the full contact object (structured name parts, `addresses`, `org`, `urls`, `birthday`).
+- **Templates:** `sendTemplate` (sends an approved template; template _management_ is on the roadmap).
+- **Interactive:** `sendInteractiveButtons`, `sendInteractiveList` (with text/image/video/document headers), `sendInteractiveCtaUrl`, `sendInteractiveFlow`, `sendLocationRequest`, `sendProduct`, `sendProductList`, `sendAddressMessage` (India and Singapore).
+- **Other:** `sendReaction`, `markAsRead`, `sendTypingIndicator`.
+- **Media lifecycle:** `client.media.upload`, `getUrl`, `download`/`downloadByUrl`, and `delete`.
+- **Reply/context:** pass `{ replyToMessageId }` to any sender to reply to a prior message.
+- **Webhooks:** `verifyWebhook`/`verifyWebhookQuery` (GET handshake), `verifySignature` (constant-time `X-Hub-Signature-256`), `parseWebhook`/`extractMessages`/`extractStatuses` with a typed `IncomingMessage` union and `MessageStatus`, and a framework-agnostic `WebhookHandler`.
+- **Client-side validation:** body/footer/header lengths, button counts and ids, list section/row limits, reaction emoji, flow CTA, product-list item counts, and address-message country/postal-code — all checked before the request.
+- **Typed errors:** `WhatsAppApiError`, `WhatsAppAuthenticationError`, `WhatsAppRateLimitError`, `WhatsAppReEngagementError`, `WhatsAppRequestError`, `WhatsAppValidationError`, and `WhatsAppWebhookError`.
+
+## Messaging
+
+```ts
 // Send a pre-approved template.
 await client.messages.sendTemplate('15551234567', {
   name: 'hello_world',
@@ -94,7 +162,8 @@ await client.messages.sendInteractiveCtaUrl('15551234567', {
 Prompts the user for a delivery address. `country` is required (`IN` or `SG`),
 and camelCase fields are mapped to the API's snake_case shape for you. The
 submitted address arrives via webhook as an interactive `nfm_reply` whose
-`response_json` is a raw JSON string you parse yourself.
+`response_json` is a raw JSON string you parse yourself (see
+[Webhooks](#webhooks)).
 
 ```ts
 await client.messages.sendAddressMessage('15551234567', {
@@ -113,7 +182,7 @@ once you send a message or after about 25 seconds.
 await client.messages.sendTypingIndicator('wamid.HBgL...');
 ```
 
-### Media
+## Media
 
 Upload a file once to get a reusable media `id`, then send it with any of the
 media senders. `upload` accepts a `Blob`/`File`, or `{ file, type, filename }`
@@ -159,10 +228,11 @@ Uploaded media is retained by Meta for **30 days**, after which the id stops
 resolving. Per-type upload size limits apply: images 5 MB, video 16 MB, audio
 16 MB, documents 100 MB, and stickers 100 KB (static) / 500 KB (animated).
 
-### Handling errors
+## Error handling
 
 Every API failure is a subclass of `WhatsAppApiError`, so `.code` (the Graph
-error code) is always available. Branch on the specific classes to react:
+error code), `.httpStatus`, and related fields are always available. Branch on
+the specific classes to react:
 
 ```ts
 import {
@@ -194,19 +264,17 @@ try {
 }
 ```
 
-### Error class mapping
-
-`errorFromResponse` picks the error class from the HTTP status and Graph error
-`code`:
+**Error class mapping.** `errorFromResponse` picks the error class from the HTTP
+status and Graph error `code`:
 
 - `429`, `130429`, `131056`, `133016` → `WhatsAppRateLimitError`
 - `131047` → `WhatsAppReEngagementError`
 - `401`, `403`, `0`, `190` → `WhatsAppAuthenticationError`
 - everything else → `WhatsAppApiError` (with `.code` set)
 
-All of the above extend `WhatsAppApiError`, so `.code`, `.httpStatus`, and
-related fields are available on each. `WhatsAppValidationError` is raised
-locally before a request is sent and is not part of this mapping.
+All of the above extend `WhatsAppApiError`. Network, abort, and timeout failures
+raise `WhatsAppRequestError` (with an `isTimeout` flag). `WhatsAppValidationError`
+is raised locally before a request is sent and is not part of this mapping.
 
 ## Webhooks
 
@@ -309,19 +377,12 @@ Prefer `WebhookHandler` when you want the secrets bound once: `const handler = n
 ## Roadmap
 
 - **Template management** (create, list, update, delete message templates).
-- **Phone number and WABA management.**
+- **Phone number and WABA management** (registration, business profile, webhook subscription).
 - Python and Rust ports of the SDK, following the TypeScript release.
-
-## Documentation
-
-The public API is fully typed — your editor's autocomplete and the bundled `.d.ts`
-declarations document every method, option, and payload shape. The examples above
-cover the common flows; for the underlying API semantics, see the
-[WhatsApp Cloud API reference](https://developers.facebook.com/docs/whatsapp/cloud-api).
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the development setup and workflow, and please follow the [Code of Conduct](./CODE_OF_CONDUCT.md).
+Contributions are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the development setup, release process, and workflow, and please follow the [Code of Conduct](./CODE_OF_CONDUCT.md).
 
 ## Security
 
