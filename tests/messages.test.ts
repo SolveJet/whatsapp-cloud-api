@@ -702,3 +702,118 @@ describe('MessagesResource new interactive senders', () => {
     ).toThrow(WhatsAppValidationError);
   });
 });
+
+describe('MessagesResource typing indicator', () => {
+  it('sendTypingIndicator posts the read status body with a text typing_indicator', async () => {
+    await makeClient().messages.sendTypingIndicator('wamid.X');
+    expect(lastRequest().body).toEqual({
+      messaging_product: 'whatsapp',
+      status: 'read',
+      message_id: 'wamid.X',
+      typing_indicator: { type: 'text' },
+    });
+  });
+
+  it('honors a per-call phoneNumberId override', async () => {
+    const client = new WhatsAppClient({ accessToken: 'secret-token' });
+    await client.messages.sendTypingIndicator('wamid.X', '3333333333');
+    expect(lastRequest().url).toBe(`${BASE_URL}/3333333333/messages`);
+  });
+});
+
+describe('MessagesResource address message', () => {
+  it('sendAddressMessage builds the address_message envelope with JSON-encoded parameters', async () => {
+    await makeClient().messages.sendAddressMessage('15551234567', {
+      body: 'Where should we deliver?',
+      country: 'IN',
+      values: { name: 'Ada', phoneNumber: '15551234567', inPinCode: '560001' },
+      footer: 'Thanks',
+    });
+    const { body } = lastRequest();
+    expect(body).toMatchObject({
+      type: 'interactive',
+      interactive: {
+        type: 'address_message',
+        body: { text: 'Where should we deliver?' },
+        footer: { text: 'Thanks' },
+        action: { name: 'address_message' },
+      },
+    });
+    const interactive = body.interactive as Record<string, unknown>;
+    const action = interactive.action as Record<string, unknown>;
+    expect(typeof action.parameters).toBe('string');
+    expect(JSON.parse(action.parameters as string)).toEqual({
+      country: 'IN',
+      values: { name: 'Ada', phone_number: '15551234567', in_pin_code: '560001' },
+    });
+  });
+
+  it('maps saved addresses and validation errors into snake_case parameters', async () => {
+    await makeClient().messages.sendAddressMessage('15551234567', {
+      body: 'Confirm address',
+      country: 'SG',
+      savedAddresses: [{ id: 'home', value: { city: 'Singapore', sgPostCode: '049712' } }],
+      validationErrors: { sg_post_code: 'Invalid post code' },
+    });
+    const action = (lastRequest().body.interactive as Record<string, unknown>).action as Record<
+      string,
+      unknown
+    >;
+    expect(JSON.parse(action.parameters as string)).toEqual({
+      country: 'SG',
+      saved_addresses: [{ id: 'home', value: { city: 'Singapore', sg_post_code: '049712' } }],
+      validation_errors: { sg_post_code: 'Invalid post code' },
+    });
+  });
+
+  it('rejects a missing or unsupported country', () => {
+    expect(() =>
+      makeClient().messages.sendAddressMessage('15551234567', {
+        body: 'Where?',
+        country: '' as unknown as 'IN',
+      }),
+    ).toThrow(WhatsAppValidationError);
+    expect(() =>
+      makeClient().messages.sendAddressMessage('15551234567', {
+        body: 'Where?',
+        country: 'US' as unknown as 'IN',
+      }),
+    ).toThrow(WhatsAppValidationError);
+  });
+
+  it('rejects an in_pin_code longer than 6 characters', () => {
+    expect(() =>
+      makeClient().messages.sendAddressMessage('15551234567', {
+        body: 'Where?',
+        country: 'IN',
+        values: { inPinCode: '1234567' },
+      }),
+    ).toThrow(WhatsAppValidationError);
+  });
+
+  it('rejects an sg_post_code longer than 6 characters', () => {
+    expect(() =>
+      makeClient().messages.sendAddressMessage('15551234567', {
+        body: 'Where?',
+        country: 'SG',
+        values: { sgPostCode: '1234567' },
+      }),
+    ).toThrow(WhatsAppValidationError);
+  });
+
+  it('validates body and footer length limits', () => {
+    expect(() =>
+      makeClient().messages.sendAddressMessage('15551234567', {
+        body: 'a'.repeat(1025),
+        country: 'IN',
+      }),
+    ).toThrow(WhatsAppValidationError);
+    expect(() =>
+      makeClient().messages.sendAddressMessage('15551234567', {
+        body: 'Where?',
+        country: 'IN',
+        footer: 'a'.repeat(61),
+      }),
+    ).toThrow(WhatsAppValidationError);
+  });
+});

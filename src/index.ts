@@ -47,6 +47,9 @@ export type {
 
 export { MessagesResource } from './resources/messages.js';
 export type {
+  AddressMessagePayload,
+  AddressMessageSavedAddress,
+  AddressMessageValues,
   CaptionedMedia,
   Contact,
   ContactAddress,
@@ -103,6 +106,7 @@ export type {
   IncomingMediaObject,
   IncomingMessage,
   InteractiveIncomingMessage,
+  InteractiveNfmReply,
   LocationIncomingMessage,
   MessageStatus,
   ParsedWebhook,

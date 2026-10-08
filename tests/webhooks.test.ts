@@ -207,6 +207,36 @@ describe('parseWebhook + extractMessages', () => {
     }
   });
 
+  it('narrows an interactive nfm_reply (address submission) and exposes the raw response_json', () => {
+    const responseJson = JSON.stringify({ name: 'Ada', city: 'Bengaluru' });
+    const [msg] = extractMessages(
+      makeMessage({
+        type: 'interactive',
+        interactive: {
+          type: 'nfm_reply',
+          nfm_reply: {
+            name: 'address_message',
+            response_json: responseJson,
+            body: 'Address submitted',
+          },
+        },
+      }),
+    );
+    if (msg?.type === 'interactive') {
+      expect(msg.interactive.type).toBe('nfm_reply');
+      expect(msg.interactive.nfm_reply?.name).toBe('address_message');
+      expect(msg.interactive.nfm_reply?.body).toBe('Address submitted');
+      // response_json is surfaced as a raw string; callers parse it themselves.
+      expect(msg.interactive.nfm_reply?.response_json).toBe(responseJson);
+      expect(JSON.parse(msg.interactive.nfm_reply?.response_json ?? '{}')).toEqual({
+        name: 'Ada',
+        city: 'Bengaluru',
+      });
+    } else {
+      expect.unreachable();
+    }
+  });
+
   it('narrows a template quick-reply button message', () => {
     const [msg] = extractMessages(
       makeMessage({ type: 'button', button: { text: 'Stop', payload: 'STOP' } }),

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-08
+
+### Added
+
+- Typing indicator via `client.messages.sendTypingIndicator(messageId, phoneNumberId?)`: marks an inbound message as read and shows a `typing_indicator` of type `text` to the user (dismissed when you send a message or after about 25 seconds). The existing `markAsRead` signature is unchanged.
+- Interactive address message via `client.messages.sendAddressMessage` (supported in India and Singapore): a typed `AddressMessagePayload` (body, required `country` of `IN`/`SG`, optional pre-filled `values`, `savedAddresses`, `validationErrors`, plus the shared header/footer) whose camelCase fields map to the snake_case API shape and are serialized into the JSON-encoded `action.parameters` string the API requires. Client-side validation rejects a missing/unsupported country, an `in_pin_code`/`sg_post_code` longer than 6 characters, and over-limit body/footer/header lengths. New exported types `AddressMessagePayload`, `AddressMessageValues`, and `AddressMessageSavedAddress`.
+- Inbound parsing for address submissions: the interactive webhook union now carries `nfm_reply` (Native Flow Message reply) with `name`, the RAW `response_json` string (left unparsed so a malformed payload never throws — callers `JSON.parse` it), and an optional `body`. New exported type `InteractiveNfmReply`.
+
 ### Fixed
 
 - Release workflow: npm OIDC trusted publishing now works end to end. The publish was failing with a misleading `ENEEDAUTH`; the actual cause was a case mismatch in the npm trusted-publisher config (`solvejet` vs the canonical GitHub owner `SolveJet`), which made npm's token exchange return `404 package not found`. The workflow now uses Node 24's bundled npm, keeps `registry-url` while stripping the empty `_authToken` line setup-node writes, never sets `NODE_AUTH_TOKEN`, and gained a `workflow_dispatch` trigger for manual re-runs. Trusted-publisher field names are case-sensitive and must match the GitHub OIDC claims exactly.
@@ -47,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Interactive button and list headers now accept the structured `InteractiveHeader` type in addition to a plain string (backward compatible).
 - Removed stale "omitted" notes from the contact types now that the full contacts object is modeled.
 
-[Unreleased]: https://github.com/solvejet/whatsapp-cloud-api/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/solvejet/whatsapp-cloud-api/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/solvejet/whatsapp-cloud-api/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/solvejet/whatsapp-cloud-api/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/solvejet/whatsapp-cloud-api/releases/tag/v0.1.0
