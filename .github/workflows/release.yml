@@ -1,23 +1,27 @@
 # Release workflow — publishes the package to npm via OIDC Trusted Publishing.
 #
 # No NPM_TOKEN is required. Authentication uses GitHub Actions' OIDC identity,
-# which the npm CLI exchanges for a short-lived publish token at publish time.
-# One-time setup on npmjs.com (Package → Settings → Trusted Publisher →
-# GitHub Actions): Organization/user "SolveJet", Repository
-# "whatsapp-cloud-api", Workflow filename "release.yml", Allowed action
-# "npm publish".
+# which the npm CLI (>= 11.5.1) detects automatically and exchanges for a
+# short-lived publish token at publish time — BEFORE falling back to any token
+# auth. We therefore do NOT scrub `.npmrc` or set NODE_AUTH_TOKEN; the modern
+# CLI handles the exchange on its own. Provenance is generated automatically for
+# trusted publishing from a public repo, so `--provenance` is not needed either.
 #
-# OIDC publishing needs: `id-token: write` (below), npm >= 11.5.1 (we install
-# npm@latest), and a registry configured for the scope so npm knows where to
-# run the token exchange. `registry-url` on setup-node provides that mapping,
-# but it also writes an `.npmrc` line `_authToken=${NODE_AUTH_TOKEN}`; with no
-# token that line makes npm attempt (failing) token auth, so we strip it before
-# publishing. npm then falls through to the OIDC exchange.
+# One-time setup on npmjs.com (Package -> Settings -> Trusted Publisher ->
+# GitHub Actions): Organization/user "solvejet", Repository
+# "whatsapp-cloud-api", Workflow filename "release.yml", Environment name EMPTY.
+#
+# Triggers:
+#   - release: published  -> normal path, publishes on a GitHub release.
+#   - workflow_dispatch    -> manual re-run (e.g. to validate the trusted
+#                             publisher or retry a failed publish) without
+#                             creating a new tag/release.
 name: Release
 
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -44,7 +48,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # On a release trigger, the tag must match package.json. On a manual
+      # workflow_dispatch run there is no tag ref, so this check is skipped.
       - name: Verify package version matches release tag
+        if: github.event_name == 'release'
         run: |
           PKG_VERSION="v$(node -p "require('./package.json').version")"
           TAG="${GITHUB_REF_NAME}"
@@ -57,29 +64,12 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      # Ensure an OIDC-capable npm CLI (trusted publishing needs >= 11.5.1).
+      # Trusted publishing needs an OIDC-capable npm CLI (>= 11.5.1). Node 24
+      # ships a recent npm, but pin to latest to be safe.
       - name: Update npm
         run: npm install -g npm@latest
 
-      # Scrub the empty `_authToken` placeholder AND publish in one step so no
-      # cross-step env/file regeneration can re-introduce it. setup-node writes
-      # `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` into the userconfig
-      # .npmrc; with no token it expands to empty, which npm treats as
-      # "auth configured" and skips the OIDC exchange (ENEEDAUTH/E404). Removing
-      # every `_authToken`/`always-auth` line from both the userconfig and the
-      # project .npmrc lets npm detect the OIDC id-token and run the exchange.
-      # Ref: https://github.com/npm/documentation/issues/1960
-      - name: Publish (OIDC)
+      - name: Publish (OIDC trusted publishing)
         run: |
           echo "npm version: $(npm --version)"
-          for f in "${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}" "$HOME/.npmrc" "$PWD/.npmrc"; do
-            if [ -f "$f" ]; then
-              echo "Scrubbing auth lines from $f"
-              sed -i '/_authToken/d;/always-auth/d' "$f" || true
-            fi
-          done
-          # Confirm the OIDC request env is present (set by `id-token: write`).
-          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
-            echo "::warning::ACTIONS_ID_TOKEN_REQUEST_URL is not set — OIDC will not run."
-          fi
-          npm publish --provenance --access public --registry=https://registry.npmjs.org/
+          npm publish --access public
