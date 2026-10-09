@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.1] - 2026-10-09
+## [1.1.0] - 2026-10-09
+
+### Changed
+
+- Expanded the npm package `description` and `keywords` to improve discoverability on npm and in search/LLM results — the metadata now names the concrete capabilities (send messages, media, templates, interactive messages; verify webhooks; manage phone numbers, WABAs, and templates) and the runtime (zero dependencies, native fetch, Node.js 20+). No code or API changes.
+- Documentation (`README`): added a "Why this library" positioning section, a "What you can do" capability table, and an FAQ answering common questions (how to send a message/template, how to verify webhooks, dependencies, supported Node.js versions, official-SDK clarification). Existing usage sections are unchanged.
 
 First stable release. The public API is now considered stable and this project
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html): breaking
@@ -106,7 +111,8 @@ as stable:
 - Interactive button and list headers now accept the structured `InteractiveHeader` type in addition to a plain string (backward compatible).
 - Removed stale "omitted" notes from the contact types now that the full contacts object is modeled.
 
-[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.5.0...v1.0.1
 [0.5.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.3.1...v0.4.0
