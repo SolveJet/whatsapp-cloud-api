@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-09
+
+### Changed
+
+- Documentation: added the Calling media plane (WebRTC/SIP) to the README roadmap — optional future helpers for the real-time media layer that is currently the caller's responsibility (the Calling REST signaling and settings are implemented in `client.calls`).
+
 ## [1.2.0] - 2026-10-09
 
 ### Added
@@ -119,7 +125,8 @@ as stable:
 - Interactive button and list headers now accept the structured `InteractiveHeader` type in addition to a plain string (backward compatible).
 - Removed stale "omitted" notes from the contact types now that the full contacts object is modeled.
 
-[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.5.0...v1.0.1

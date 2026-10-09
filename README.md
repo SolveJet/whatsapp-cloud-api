@@ -638,6 +638,7 @@ Every API failure is a typed subclass of `WhatsAppApiError` — for example `Wha
 
 ## Roadmap
 
+- **Calling media plane (WebRTC/SIP).** Optional helpers for the real-time media layer of the Calling API — negotiating and managing the SDP/WebRTC (and SIP) media sessions that today are the caller's responsibility (see [Calling](#calling)). The REST signaling and settings are already implemented in `client.calls`.
 - Python and Rust ports of the SDK, following the TypeScript release.
 
 ## Contributing
