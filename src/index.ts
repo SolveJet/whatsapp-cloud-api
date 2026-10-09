@@ -9,12 +9,15 @@
  * resolution, download, and deletion. Also exposes phone-number management
  * (`client.phoneNumbers`), WhatsApp Business Account management
  * (`client.waba`), message-template management (`client.templates`), the
- * Block API (`client.blocks`) for blocking, unblocking, and listing users, and
- * Flows management (`client.flows`) for the interactive-form lifecycle.
+ * Block API (`client.blocks`) for blocking, unblocking, and listing users,
+ * Flows management (`client.flows`) for the interactive-form lifecycle, and
+ * the Calling API (`client.calls`) for calling settings and the call
+ * lifecycle.
  */
 
 import { HttpClient } from './http.js';
 import { BlocksResource } from './resources/blocks.js';
+import { CallsResource } from './resources/calls.js';
 import { FlowsResource } from './resources/flows.js';
 import { MediaResource } from './resources/media.js';
 import { MessagesResource } from './resources/messages.js';
@@ -202,6 +205,17 @@ export type {
   UpdateFlowPayload,
 } from './types/flows.js';
 
+export { CallsResource } from './resources/calls.js';
+export type {
+  CallResponse,
+  CallSdp,
+  CallingSettings,
+  CallingSettingsUpdate,
+  InitiateCallOptions,
+  PhoneNumberSettings,
+  UpdateCallSettingsPayload,
+} from './types/calls.js';
+
 /** Default per-attempt request timeout in milliseconds. */
 export const DEFAULT_TIMEOUT_MS = 30000;
 
@@ -255,6 +269,7 @@ export class WhatsAppClient {
   private templatesResource?: TemplatesResource;
   private blocksResource?: BlocksResource;
   private flowsResource?: FlowsResource;
+  private callsResource?: CallsResource;
 
   constructor(config: WhatsAppClientConfig) {
     if (!config.accessToken) {
@@ -380,6 +395,19 @@ export class WhatsAppClient {
       () => this.config.businessAccountId,
     );
     return this.flowsResource;
+  }
+
+  /**
+   * Typed WhatsApp Business Calling API. Lazily instantiated on first access
+   * and reused thereafter, bound to the internal request path and the
+   * configured default phone number ID.
+   */
+  get calls(): CallsResource {
+    this.callsResource ??= new CallsResource(
+      (options) => this.http.request(options),
+      () => this.config.phoneNumberId,
+    );
+    return this.callsResource;
   }
 
   /** Returns the configured phone number ID, if any. */
