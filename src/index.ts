@@ -7,14 +7,15 @@
  * agnostic webhook utilities (verification, signature validation, and typed
  * inbound parsing), and the Media API (`client.media`) for upload, URL
  * resolution, download, and deletion. Also exposes phone-number management
- * (`client.phoneNumbers`) and WhatsApp Business Account management
- * (`client.waba`). Template management is not yet implemented.
+ * (`client.phoneNumbers`), WhatsApp Business Account management
+ * (`client.waba`), and message-template management (`client.templates`).
  */
 
 import { HttpClient } from './http.js';
 import { MediaResource } from './resources/media.js';
 import { MessagesResource } from './resources/messages.js';
 import { PhoneNumbersResource } from './resources/phone-numbers.js';
+import { TemplatesResource } from './resources/templates.js';
 import { WabaResource } from './resources/waba.js';
 import type { RequestOptions } from './types/common.js';
 
@@ -152,6 +153,22 @@ export type {
   Waba,
 } from './types/waba.js';
 
+export { TemplatesResource } from './resources/templates.js';
+export type { DeleteTemplateOptions, ListTemplatesOptions } from './resources/templates.js';
+export type {
+  CreateTemplatePayload,
+  CreateTemplateResponse,
+  EditTemplatePayload,
+  MessageTemplate,
+  TemplateButton,
+  TemplateCategory,
+  TemplateList,
+  TemplateNamedParamExample,
+  TemplateParameterFormat,
+  TemplateStatus,
+} from './types/templates.js';
+export type { TemplateComponent as MessageTemplateComponent } from './types/templates.js';
+
 /** Default per-attempt request timeout in milliseconds. */
 export const DEFAULT_TIMEOUT_MS = 30000;
 
@@ -202,6 +219,7 @@ export class WhatsAppClient {
   private mediaResource?: MediaResource;
   private phoneNumbersResource?: PhoneNumbersResource;
   private wabaResource?: WabaResource;
+  private templatesResource?: TemplatesResource;
 
   constructor(config: WhatsAppClientConfig) {
     if (!config.accessToken) {
@@ -288,6 +306,19 @@ export class WhatsAppClient {
       () => this.config.businessAccountId,
     );
     return this.wabaResource;
+  }
+
+  /**
+   * Typed message-template management API. Lazily instantiated on first access
+   * and reused thereafter, bound to the internal request path and the
+   * configured default business account ID.
+   */
+  get templates(): TemplatesResource {
+    this.templatesResource ??= new TemplatesResource(
+      (options) => this.http.request(options),
+      () => this.config.businessAccountId,
+    );
+    return this.templatesResource;
   }
 
   /** Returns the configured phone number ID, if any. */

@@ -13,7 +13,7 @@ A typed, zero-runtime-dependency TypeScript SDK for the [WhatsApp Cloud API](htt
 - **Typed error hierarchy** — rate limits, re-engagement, auth, and validation errors are distinct classes.
 - **Signed provenance** — every release is published from CI with [npm provenance](https://docs.npmjs.com/generating-provenance-statements).
 
-> **Status: active development (`0.x`).** Outbound messaging, inbound webhooks, the media lifecycle, and phone-number/WABA management are implemented. Template management is not yet available (see the [Roadmap](#roadmap)). While on `0.x`, minor versions may include breaking changes as the remaining surface lands.
+> **Status: active development (`0.x`).** Outbound messaging, inbound webhooks, the media lifecycle, phone-number/WABA management, and message-template management are implemented. While on `0.x`, minor versions may include breaking changes as the remaining surface lands.
 
 ## Contents
 
@@ -28,6 +28,7 @@ A typed, zero-runtime-dependency TypeScript SDK for the [WhatsApp Cloud API](htt
   - [Typing indicator](#typing-indicator)
 - [Media](#media)
 - [Phone number & WABA management](#phone-number--waba-management)
+- [Template management](#template-management)
 - [Error handling](#error-handling)
 - [Webhooks](#webhooks)
 - [Roadmap](#roadmap)
@@ -107,11 +108,12 @@ present.
 
 - **Text and media:** `sendText`, `sendImage`, `sendVideo`, `sendAudio`, `sendDocument`, `sendSticker` (media is referenced by an uploaded `id` or a public `link`).
 - **Location and contacts:** `sendLocation`, `sendContacts` with the full contact object (structured name parts, `addresses`, `org`, `urls`, `birthday`).
-- **Templates:** `sendTemplate` (sends an approved template; template _management_ is on the roadmap).
+- **Templates:** `sendTemplate` (sends an approved template) plus full template management via `client.templates` (create, list, get, edit, delete).
 - **Interactive:** `sendInteractiveButtons`, `sendInteractiveList` (with text/image/video/document headers), `sendInteractiveCtaUrl`, `sendInteractiveFlow`, `sendLocationRequest`, `sendProduct`, `sendProductList`, `sendAddressMessage` (India and Singapore).
 - **Other:** `sendReaction`, `markAsRead`, `sendTypingIndicator`.
 - **Media lifecycle:** `client.media.upload`, `getUrl`, `download`/`downloadByUrl`, and `delete`.
 - **Phone number & WABA management:** `client.phoneNumbers.*` (verification, Cloud API registration, two-step PIN, business profile) and `client.waba.*` (account details, list phone numbers, subscribed-app management).
+- **Template management:** `client.templates.*` (`create`, `list`, `get`, `edit`, `delete` message templates, with client-side validation of the documented create limits).
 - **Reply/context:** pass `{ replyToMessageId }` to any sender to reply to a prior message.
 - **Webhooks:** `verifyWebhook`/`verifyWebhookQuery` (GET handshake), `verifySignature` (constant-time `X-Hub-Signature-256`), `parseWebhook`/`extractMessages`/`extractStatuses` with a typed `IncomingMessage` union and `MessageStatus`, and a framework-agnostic `WebhookHandler`.
 - **Client-side validation:** body/footer/header lengths, button counts and ids, list section/row limits, reaction emoji, flow CTA, product-list item counts, and address-message country/postal-code — all checked before the request.
@@ -255,8 +257,44 @@ The verification flow (`requestVerificationCode`/`verifyCode`), two-step PIN
 management (`setTwoStepPin` — there is no API to disable it), profile updates
 (`updateBusinessProfile`), and app webhook subscriptions
 (`client.waba.subscribeApp`/`unsubscribeApp`/`listSubscribedApps`) are all
-available. Phone-number deletion and template management are intentionally out
-of scope (see the [Roadmap](#roadmap)).
+available. Phone-number deletion is intentionally out of scope.
+
+## Template management
+
+Create, list, read, edit, and delete message templates with `client.templates`.
+Every method accepts an optional trailing `businessAccountId` (the id-scoped
+`get`/`edit` take a required template id instead), falling back to the
+configured `businessAccountId`; when neither is set the call throws
+`WhatsAppValidationError`. `create` validates the documented hard limits
+client-side before sending.
+
+```ts
+// Create a template. Exactly one BODY component is required.
+const created = await client.templates.create({
+  name: 'order_confirmation',
+  language: 'en_US',
+  category: 'UTILITY',
+  components: [
+    {
+      type: 'BODY',
+      text: 'Hi {{1}}, your order {{2}} is confirmed.',
+      example: { body_text: [['Sam', '12345']] },
+    },
+    { type: 'FOOTER', text: 'Reply STOP to opt out.' },
+  ],
+});
+console.log(created.id, created.status); // e.g. "123..." "PENDING"
+
+// List templates on the business account (filters and paging are optional).
+const { data } = await client.templates.list({ status: 'APPROVED', limit: 20 });
+console.log(data.map((t) => t.name));
+
+// Delete every version of a template by name.
+await client.templates.delete({ name: 'order_confirmation' });
+```
+
+Editing an approved template resets it to `PENDING` for re-review, and a
+template's `name` and `language` are immutable.
 
 ## Error handling
 
@@ -413,7 +451,6 @@ Prefer `WebhookHandler` when you want the secrets bound once: `const handler = n
 
 ## Roadmap
 
-- **Template management** (create, list, update, delete message templates).
 - Python and Rust ports of the SDK, following the TypeScript release.
 
 ## Contributing
