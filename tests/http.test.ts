@@ -67,6 +67,23 @@ describe('HttpClient request wiring', () => {
     expect(init.body).toBe(JSON.stringify({ hello: 'world' }));
   });
 
+  it('forwards a JSON body on a DELETE request', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const body = {
+      messaging_product: 'whatsapp',
+      block_users: [{ user: '15551234567' }],
+    };
+    await makeClient().request({ method: 'DELETE', path: 'id/block_users', body });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.method).toBe('DELETE');
+    const headers = init.headers as Record<string, string>;
+    expect(headers['Content-Type']).toBe('application/json');
+    expect(JSON.parse(init.body as string)).toEqual(body);
+  });
+
   it('strips a leading slash on the path and omits content-type without a body', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ ok: true }));
     vi.stubGlobal('fetch', fetchMock);

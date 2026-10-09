@@ -8,10 +8,12 @@
  * inbound parsing), and the Media API (`client.media`) for upload, URL
  * resolution, download, and deletion. Also exposes phone-number management
  * (`client.phoneNumbers`), WhatsApp Business Account management
- * (`client.waba`), and message-template management (`client.templates`).
+ * (`client.waba`), message-template management (`client.templates`), and the
+ * Block API (`client.blocks`) for blocking, unblocking, and listing users.
  */
 
 import { HttpClient } from './http.js';
+import { BlocksResource } from './resources/blocks.js';
 import { MediaResource } from './resources/media.js';
 import { MessagesResource } from './resources/messages.js';
 import { PhoneNumbersResource } from './resources/phone-numbers.js';
@@ -169,6 +171,15 @@ export type {
 } from './types/templates.js';
 export type { TemplateComponent as MessageTemplateComponent } from './types/templates.js';
 
+export { BlocksResource } from './resources/blocks.js';
+export type {
+  BlockUsersResponse,
+  BlockedUser,
+  BlockedUserList,
+  FailedBlockUser,
+  ListBlockedUsersOptions,
+} from './types/blocks.js';
+
 /** Default per-attempt request timeout in milliseconds. */
 export const DEFAULT_TIMEOUT_MS = 30000;
 
@@ -220,6 +231,7 @@ export class WhatsAppClient {
   private phoneNumbersResource?: PhoneNumbersResource;
   private wabaResource?: WabaResource;
   private templatesResource?: TemplatesResource;
+  private blocksResource?: BlocksResource;
 
   constructor(config: WhatsAppClientConfig) {
     if (!config.accessToken) {
@@ -319,6 +331,19 @@ export class WhatsAppClient {
       () => this.config.businessAccountId,
     );
     return this.templatesResource;
+  }
+
+  /**
+   * Typed Block API. Lazily instantiated on first access and reused
+   * thereafter, bound to the internal request path and the configured default
+   * phone number ID.
+   */
+  get blocks(): BlocksResource {
+    this.blocksResource ??= new BlocksResource(
+      (options) => this.http.request(options),
+      () => this.config.phoneNumberId,
+    );
+    return this.blocksResource;
   }
 
   /** Returns the configured phone number ID, if any. */
