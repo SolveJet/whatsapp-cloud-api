@@ -6,13 +6,16 @@
  * hierarchy, the outbound Messages API (`client.messages`), and framework-
  * agnostic webhook utilities (verification, signature validation, and typed
  * inbound parsing), and the Media API (`client.media`) for upload, URL
- * resolution, download, and deletion. Template management is not yet
- * implemented.
+ * resolution, download, and deletion. Also exposes phone-number management
+ * (`client.phoneNumbers`) and WhatsApp Business Account management
+ * (`client.waba`). Template management is not yet implemented.
  */
 
 import { HttpClient } from './http.js';
 import { MediaResource } from './resources/media.js';
 import { MessagesResource } from './resources/messages.js';
+import { PhoneNumbersResource } from './resources/phone-numbers.js';
+import { WabaResource } from './resources/waba.js';
 import type { RequestOptions } from './types/common.js';
 
 export {
@@ -24,14 +27,16 @@ export {
   WhatsAppRequestError,
   WhatsAppValidationError,
   WhatsAppWebhookError,
+  WhatsAppErrorCode,
   errorFromResponse,
 } from './errors.js';
-export type { WhatsAppApiErrorFields } from './errors.js';
+export type { WhatsAppApiErrorFields, WhatsAppErrorCodeValue } from './errors.js';
 export type {
   GraphErrorEnvelope,
   HttpMethod,
   RequestOptions,
   ResponseType,
+  SuccessResponse,
 } from './types/common.js';
 
 export { MediaResource } from './resources/media.js';
@@ -126,6 +131,27 @@ export type {
   WebhookValue,
 } from './types/webhooks.js';
 
+export { PhoneNumbersResource } from './resources/phone-numbers.js';
+export type {
+  BusinessProfile,
+  BusinessProfileUpdate,
+  BusinessProfileVertical,
+  PhoneNumber,
+  RegisterOptions,
+  RequestVerificationCodeOptions,
+} from './types/phone-numbers.js';
+
+export { WabaResource } from './resources/waba.js';
+export type {
+  ListPhoneNumbersOptions,
+  Paging,
+  PagingCursors,
+  PhoneNumberList,
+  SubscribedApp,
+  SubscribedAppList,
+  Waba,
+} from './types/waba.js';
+
 /** Default per-attempt request timeout in milliseconds. */
 export const DEFAULT_TIMEOUT_MS = 30000;
 
@@ -174,6 +200,8 @@ export class WhatsAppClient {
   private readonly http: HttpClient;
   private messagesResource?: MessagesResource;
   private mediaResource?: MediaResource;
+  private phoneNumbersResource?: PhoneNumbersResource;
+  private wabaResource?: WabaResource;
 
   constructor(config: WhatsAppClientConfig) {
     if (!config.accessToken) {
@@ -234,6 +262,32 @@ export class WhatsAppClient {
       () => this.config.phoneNumberId,
     );
     return this.mediaResource;
+  }
+
+  /**
+   * Typed phone-number management API. Lazily instantiated on first access and
+   * reused thereafter, bound to the internal request path and the configured
+   * default phone number ID.
+   */
+  get phoneNumbers(): PhoneNumbersResource {
+    this.phoneNumbersResource ??= new PhoneNumbersResource(
+      (options) => this.http.request(options),
+      () => this.config.phoneNumberId,
+    );
+    return this.phoneNumbersResource;
+  }
+
+  /**
+   * Typed WhatsApp Business Account (WABA) management API. Lazily instantiated
+   * on first access and reused thereafter, bound to the internal request path
+   * and the configured default business account ID.
+   */
+  get waba(): WabaResource {
+    this.wabaResource ??= new WabaResource(
+      (options) => this.http.request(options),
+      () => this.config.businessAccountId,
+    );
+    return this.wabaResource;
   }
 
   /** Returns the configured phone number ID, if any. */

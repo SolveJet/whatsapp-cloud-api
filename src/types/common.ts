@@ -34,6 +34,16 @@ export interface GraphErrorEnvelope {
   };
 }
 
+/**
+ * Generic acknowledgement returned by Graph endpoints that reply with a bare
+ * `{ "success": true }` body (e.g. phone-number registration, app
+ * subscription). Normalized so a missing/false value surfaces as `false`.
+ */
+export interface SuccessResponse {
+  /** True when Meta acknowledged the operation. */
+  success: boolean;
+}
+
 /** How the HTTP core should interpret a successful (2xx) response body. */
 export type ResponseType = 'json' | 'binary';
 

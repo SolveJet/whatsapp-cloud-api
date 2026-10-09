@@ -7,6 +7,53 @@
 
 import type { GraphErrorEnvelope } from './types/common.js';
 
+/**
+ * Ergonomic constants for common WhatsApp Cloud API (Graph) error codes.
+ *
+ * These mirror the numeric `code` values Meta returns in a Graph error
+ * envelope, so callers can compare `err.code` against a named constant instead
+ * of a magic number. Values are authoritative per the WhatsApp Cloud API error
+ * reference; the map is frozen (`as const`) and acts as the single source of
+ * truth for the code sets used by this module's error mapping.
+ *
+ * @see https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes
+ */
+export const WhatsAppErrorCode = Object.freeze({
+  /** Generic authentication exception; also the sentinel for an unparseable code. */
+  AUTH_EXCEPTION: 0,
+  /** Permission denied for the attempted capability. */
+  PERMISSION_DENIED: 10,
+  /** Unsupported or unknown API method/request. */
+  API_METHOD: 100,
+  /** The access token has expired and must be refreshed. */
+  ACCESS_TOKEN_EXPIRED: 190,
+  /** The phone number provided is invalid. */
+  INVALID_PHONE_NUMBER: 1013,
+  /** Account/throughput rate limit hit; retry after a backoff. */
+  RATE_LIMIT_HIT: 130429,
+  /** Message undeliverable (e.g. recipient cannot receive it). */
+  MESSAGE_UNDELIVERABLE: 131026,
+  /** The WhatsApp Business Account is restricted or locked. */
+  BUSINESS_ACCOUNT_RESTRICTED: 131031,
+  /** A re-engagement (free-form) message was sent outside the 24-hour window. */
+  RE_ENGAGEMENT_MESSAGE: 131047,
+  /** Spam rate limit hit due to prior message quality/engagement. */
+  SPAM_RATE_LIMIT_HIT: 131048,
+  /** Media could not be downloaded from the provided source. */
+  MEDIA_DOWNLOAD_ERROR: 131053,
+  /** Too many messages sent to this recipient in a short period. */
+  TOO_MANY_MESSAGES: 131056,
+  /** Template parameters do not match the approved template. */
+  TEMPLATE_PARAM_MISMATCH: 132000,
+  /** The referenced template does not exist (name/language mismatch). */
+  TEMPLATE_NOT_EXIST: 132001,
+  /** The account has reached a messaging/registration limit. */
+  ACCOUNT_LIMIT_REACHED: 133016,
+} as const);
+
+/** A numeric value from the {@link WhatsAppErrorCode} map. */
+export type WhatsAppErrorCodeValue = (typeof WhatsAppErrorCode)[keyof typeof WhatsAppErrorCode];
+
 /** Base error for all failures surfaced by this SDK. */
 export class WhatsAppError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
@@ -124,7 +171,10 @@ export class WhatsAppWebhookError extends WhatsAppError {
 }
 
 /** Graph error codes that always indicate an authentication/authorization problem. */
-const AUTH_ERROR_CODES = new Set<number>([0, 190]);
+const AUTH_ERROR_CODES = new Set<number>([
+  WhatsAppErrorCode.AUTH_EXCEPTION,
+  WhatsAppErrorCode.ACCESS_TOKEN_EXPIRED,
+]);
 
 /** True when the status/code pair indicates an auth failure per Meta guidance. */
 const isAuthError = (httpStatus: number, code: number): boolean => {
@@ -140,10 +190,14 @@ const isAuthError = (httpStatus: number, code: number): boolean => {
 };
 
 /** Graph error codes that indicate a rate-limit/throttling condition. */
-const RATE_LIMIT_ERROR_CODES = new Set<number>([130429, 131056, 133016]);
+const RATE_LIMIT_ERROR_CODES = new Set<number>([
+  WhatsAppErrorCode.RATE_LIMIT_HIT,
+  WhatsAppErrorCode.TOO_MANY_MESSAGES,
+  WhatsAppErrorCode.ACCOUNT_LIMIT_REACHED,
+]);
 
 /** Graph error code for messaging outside the 24-hour re-engagement window. */
-const RE_ENGAGEMENT_ERROR_CODE = 131047;
+const RE_ENGAGEMENT_ERROR_CODE = WhatsAppErrorCode.RE_ENGAGEMENT_MESSAGE;
 
 /** True when the status/code pair indicates a rate-limit/throttling failure. */
 const isRateLimitError = (httpStatus: number, code: number): boolean =>

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-08
+
+### Added
+
+- Ergonomic Graph error-code constants via the exported `WhatsAppErrorCode` map and its `WhatsAppErrorCodeValue` type, so callers can compare `err.code` against named constants (e.g. `WhatsAppErrorCode.RE_ENGAGEMENT_MESSAGE`) instead of magic numbers. The map covers the common auth, permission, rate-limit, re-engagement, template, media, and phone-number codes, and is now the single source of truth for the auth/rate-limit/re-engagement code sets used by `errorFromResponse` — error-class mapping behavior is unchanged.
+- Phone-number management via `client.phoneNumbers`: `get` (phone number details with optional field selection), `requestVerificationCode` and `verifyCode` (the SMS/voice verification flow), `register` and `deregister` (Cloud API registration with a six-digit PIN and optional data-localization region), `setTwoStepPin` (set/change the two-step PIN; there is no API to disable it), and `getBusinessProfile`/`updateBusinessProfile` for the WhatsApp Business Profile. Each method accepts an optional trailing `phoneNumberId` override and falls back to the configured `phoneNumberId`. New exported types `PhoneNumber`, `BusinessProfile`, `BusinessProfileUpdate`, `BusinessProfileVertical`, `RequestVerificationCodeOptions`, and `RegisterOptions`.
+- WhatsApp Business Account (WABA) management via `client.waba`: `get` (account details), `listPhoneNumbers` (the numbers owned by the account, with paging), `listSubscribedApps`, `subscribeApp`, and `unsubscribeApp`. Each method accepts an optional trailing `businessAccountId` override and falls back to the configured `businessAccountId`. New exported types `Waba`, `SubscribedApp`, `SubscribedAppList`, `PhoneNumberList`, `Paging`, `PagingCursors`, `ListPhoneNumbersOptions`, and the shared `SuccessResponse`.
+
 ## [0.3.1] - 2026-10-08
 
 ### Fixed
@@ -63,7 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Interactive button and list headers now accept the structured `InteractiveHeader` type in addition to a plain string (backward compatible).
 - Removed stale "omitted" notes from the contact types now that the full contacts object is modeled.
 
-[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/solvejet/whatsapp-cloud-api/compare/v0.1.0...v0.2.0
