@@ -40,6 +40,9 @@ It is a good fit when you want:
 | Manage phone numbers      | `client.phoneNumbers` (register, verify, business profile, two-step PIN)                         |
 | Manage WABAs              | `client.waba` (list numbers, subscribe webhooks)                                                 |
 | Manage templates          | `client.templates` (list, get, create, edit, delete)                                             |
+| Manage flows              | `client.flows` (create, publish, update JSON, list, get, deprecate, delete, assets, preview)     |
+| Block & unblock users     | `client.blocks` (block, unblock, list)                                                           |
+| Calling settings & calls  | `client.calls` (getSettings, updateSettings, initiate, preAccept, accept, reject, terminate)     |
 
 ## Contents
 
@@ -55,6 +58,9 @@ It is a good fit when you want:
 - [Media](#media)
 - [Phone number & WABA management](#phone-number--waba-management)
 - [Template management](#template-management)
+- [Flows management](#flows-management)
+- [Block API](#block-api)
+- [Calling](#calling)
 - [Error handling](#error-handling)
 - [Webhooks](#webhooks)
 - [FAQ](#faq)
@@ -141,6 +147,9 @@ present.
 - **Media lifecycle:** `client.media.upload`, `getUrl`, `download`/`downloadByUrl`, and `delete`.
 - **Phone number & WABA management:** `client.phoneNumbers.*` (verification, Cloud API registration, two-step PIN, business profile) and `client.waba.*` (account details, list phone numbers, subscribed-app management).
 - **Template management:** `client.templates.*` (`create`, `list`, `get`, `edit`, `delete` message templates, with client-side validation of the documented create limits).
+- **Flows management:** `client.flows.*` (`create`, `list`, `get`, `update`, `updateJson`, `publish`, `deprecate`, `delete`, `listAssets`, `getPreview`) for WhatsApp Flows — WABA-scoped, with multipart `FLOW_JSON` upload and client-side validation (only `DRAFT` flows are deletable).
+- **Block API:** `client.blocks.*` (`block`, `unblock`, `list`) to block or unblock the users who messaged your business — phone-number-scoped, up to 1000 users per call, with per-user failures reported in the response.
+- **Calling:** `client.calls.*` (`getSettings`, `updateSettings`, `initiate`, `preAccept`, `accept`, `reject`, `terminate`) wrapping the WhatsApp Business Calling REST signaling + settings. The SDP/WebRTC media plane is the caller's responsibility (see [Calling](#calling)).
 - **Reply/context:** pass `{ replyToMessageId }` to any sender to reply to a prior message.
 - **Webhooks:** `verifyWebhook`/`verifyWebhookQuery` (GET handshake), `verifySignature` (constant-time `X-Hub-Signature-256`), `parseWebhook`/`extractMessages`/`extractStatuses` with a typed `IncomingMessage` union and `MessageStatus`, and a framework-agnostic `WebhookHandler`.
 - **Client-side validation:** body/footer/header lengths, button counts and ids, list section/row limits, reaction emoji, flow CTA, product-list item counts, and address-message country/postal-code — all checked before the request.
@@ -322,6 +331,103 @@ await client.templates.delete({ name: 'order_confirmation' });
 
 Editing an approved template resets it to `PENDING` for re-review, and a
 template's `name` and `language` are immutable.
+
+## Flows management
+
+Build and manage [WhatsApp Flows](https://developers.facebook.com/docs/whatsapp/flows)
+with `client.flows`. The methods are WABA-scoped: each accepts an optional
+trailing `businessAccountId` and falls back to the configured
+`businessAccountId`; when neither is set the call throws
+`WhatsAppValidationError`. `create` validates a non-empty `name` and a non-empty
+`categories` array client-side before sending.
+
+```ts
+// Create a draft flow, then upload its Flow JSON and publish it.
+const flow = await client.flows.create({
+  name: 'lead_capture',
+  categories: ['LEAD_GENERATION'],
+});
+
+// Upload the Flow JSON as a FLOW_JSON asset (string, Uint8Array, or Blob).
+await client.flows.updateJson(flow.id, JSON.stringify(flowJson), { name: 'flow.json' });
+
+// Publish once the JSON validates. Only DRAFT flows can be deleted.
+await client.flows.publish(flow.id);
+
+// List flows, read one, and fetch a short-lived preview URL.
+const { data } = await client.flows.list({ fields: ['id', 'name', 'status'] });
+const detail = await client.flows.get(flow.id);
+const preview = await client.flows.getPreview(flow.id, { invalidate: true });
+console.log(preview.preview?.preview_url);
+```
+
+Update a flow's metadata with `update` (at least one editable field is
+required), inspect its uploaded assets with `listAssets`, retire it with
+`deprecate`, and remove a draft with `delete`.
+
+## Block API
+
+Block and unblock the WhatsApp users who have messaged your business with
+`client.blocks`. The methods are phone-number-scoped: each accepts an optional
+trailing `phoneNumberId` and falls back to the configured `phoneNumberId`; when
+neither is set the call throws `WhatsAppValidationError`. You can block or
+unblock up to **1000 users per call** — an empty or over-limit list throws
+`WhatsAppValidationError` before any request is sent.
+
+```ts
+// Block one or more users by WhatsApp phone number.
+const res = await client.blocks.block(['15551234567']);
+console.log(res.block_users.added_users?.map((u) => u.wa_id));
+
+// Per-user failures are reported even when the overall call succeeds.
+for (const failure of res.block_users.failed_users ?? []) {
+  console.error(`could not block ${failure.input}:`, failure.errors[0]?.message);
+}
+
+// Unblock users (issued as a DELETE with a JSON body) and list blocked users.
+await client.blocks.unblock(['15551234567']);
+const { data } = await client.blocks.list({ limit: 100 });
+console.log(data.map((u) => u.wa_id));
+```
+
+Only users who messaged your business in the **last 24 hours** can be blocked.
+
+## Calling
+
+Manage the [WhatsApp Business Calling](https://developers.facebook.com/docs/whatsapp/cloud-api/calling)
+settings and call lifecycle with `client.calls`. The methods are
+phone-number-scoped: each accepts an optional trailing `phoneNumberId` and falls
+back to the configured `phoneNumberId`; when neither is set the call throws
+`WhatsAppValidationError`.
+
+> **Scope: this SDK handles the REST signaling + settings only.** The WhatsApp
+> Business Calling API also has a real-time **media plane** — the SDP
+> offer/answer exchange carried over **WebRTC (and SIP)**. Running that media
+> stack is **the caller's responsibility**: this SDK does not open, negotiate,
+> or terminate media sessions. It passes SDP strings through as **opaque
+> values** (never parsed or validated), so you produce and consume them with
+> your own WebRTC/SIP implementation.
+
+```ts
+// Enable calling for the phone number and read the current settings.
+await client.calls.updateSettings({ calling: { status: 'ENABLED' } });
+const settings = await client.calls.getSettings();
+console.log(settings.calling?.status);
+
+// Call lifecycle. `sdp` is an opaque { sdpType, sdp } pair you produce/consume
+// with your own WebRTC/SIP stack — the SDK only relays it.
+const call = await client.calls.initiate({
+  to: '15551234567',
+  sdp: { sdpType: 'offer', sdp: localOfferSdp },
+});
+const callId = call.calls[0]?.id;
+
+await client.calls.accept(callId, { sdpType: 'answer', sdp: localAnswerSdp });
+await client.calls.terminate(callId);
+```
+
+Reject an inbound call with `reject(callId)` and send an early media answer with
+`preAccept(callId, sdp)` before accepting.
 
 ## Error handling
 
