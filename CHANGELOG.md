@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-09
+
+First stable release. The public API is now considered stable and this project
+follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html): breaking
+changes will only ship in a new major version.
+
+> Version `1.0.0` is skipped: a `1.0.0` was published to npm long before this
+> SDK's current line and later unpublished, and npm permanently reserves
+> unpublished version numbers. `1.0.1` is therefore the first stable (`1.x`)
+> release on npm.
+
+### Stable surface
+
+No functional changes from `0.5.0` — this release marks the existing feature set
+as stable:
+
+- **Outbound messaging** — text, media (image/video/audio/document/sticker), location, contacts, templates, interactive (buttons, lists, CTA URL, flow, location request, product, product list, address message), reactions, mark-as-read, and typing indicator; every sender supports reply threading via `replyToMessageId`.
+- **Inbound webhooks** — GET verification handshake, constant-time `X-Hub-Signature-256` validation, and typed parsing of incoming messages (including `nfm_reply`) and status updates.
+- **Media lifecycle** — upload, URL resolution, download, and delete.
+- **Phone number & WABA management** — `client.phoneNumbers` and `client.waba`.
+- **Message-template management** — `client.templates` (list/get/create/edit/delete).
+- **Typed errors** — the full error hierarchy plus the `WhatsAppErrorCode` constants map.
+- **Client-side validation** of documented API limits, raised before the request.
+
+### Changed
+
+- Documentation updated to reflect stable `1.x` status (README status note and SECURITY supported-versions table).
+
 ## [0.5.0] - 2026-10-09
 
 ### Added
@@ -78,7 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Interactive button and list headers now accept the structured `InteractiveHeader` type in addition to a plain string (backward compatible).
 - Removed stale "omitted" notes from the contact types now that the full contacts object is modeled.
 
-[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.5.0...v1.0.1
 [0.5.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.3.0...v0.3.1
