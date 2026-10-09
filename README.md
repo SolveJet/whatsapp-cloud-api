@@ -13,7 +13,7 @@ A typed, zero-runtime-dependency TypeScript SDK for the [WhatsApp Cloud API](htt
 - **Typed error hierarchy** — rate limits, re-engagement, auth, and validation errors are distinct classes.
 - **Signed provenance** — every release is published from CI with [npm provenance](https://docs.npmjs.com/generating-provenance-statements).
 
-> **Status: active development (`0.x`).** Outbound messaging, inbound webhooks, and the media lifecycle are implemented. Template management and phone-number/WABA management are not yet available (see the [Roadmap](#roadmap)). While on `0.x`, minor versions may include breaking changes as the remaining surface lands.
+> **Status: active development (`0.x`).** Outbound messaging, inbound webhooks, the media lifecycle, and phone-number/WABA management are implemented. Template management is not yet available (see the [Roadmap](#roadmap)). While on `0.x`, minor versions may include breaking changes as the remaining surface lands.
 
 ## Contents
 
@@ -27,6 +27,7 @@ A typed, zero-runtime-dependency TypeScript SDK for the [WhatsApp Cloud API](htt
   - [Address message (India and Singapore)](#address-message-india-and-singapore)
   - [Typing indicator](#typing-indicator)
 - [Media](#media)
+- [Phone number & WABA management](#phone-number--waba-management)
 - [Error handling](#error-handling)
 - [Webhooks](#webhooks)
 - [Roadmap](#roadmap)
@@ -69,7 +70,7 @@ required; everything else has a sensible default.
 | ------------------- | -------- | ---------------------------- | -------------------------------------------------------------------------------- |
 | `accessToken`       | `string` | — (required)                 | Permanent or temporary access token used to authenticate requests.               |
 | `phoneNumberId`     | `string` | —                            | Default sender phone number ID for messaging and media calls.                    |
-| `businessAccountId` | `string` | —                            | WhatsApp Business Account (WABA) ID. Reserved for upcoming management APIs.      |
+| `businessAccountId` | `string` | —                            | WhatsApp Business Account (WABA) ID. Default id for `client.waba` methods.       |
 | `apiVersion`        | `string` | `v23.0`                      | Graph API version to target.                                                     |
 | `baseUrl`           | `string` | `https://graph.facebook.com` | Base URL for the Graph API (override for a proxy or a mock).                     |
 | `timeoutMs`         | `number` | `30000`                      | Per-attempt request timeout in milliseconds.                                     |
@@ -110,10 +111,11 @@ present.
 - **Interactive:** `sendInteractiveButtons`, `sendInteractiveList` (with text/image/video/document headers), `sendInteractiveCtaUrl`, `sendInteractiveFlow`, `sendLocationRequest`, `sendProduct`, `sendProductList`, `sendAddressMessage` (India and Singapore).
 - **Other:** `sendReaction`, `markAsRead`, `sendTypingIndicator`.
 - **Media lifecycle:** `client.media.upload`, `getUrl`, `download`/`downloadByUrl`, and `delete`.
+- **Phone number & WABA management:** `client.phoneNumbers.*` (verification, Cloud API registration, two-step PIN, business profile) and `client.waba.*` (account details, list phone numbers, subscribed-app management).
 - **Reply/context:** pass `{ replyToMessageId }` to any sender to reply to a prior message.
 - **Webhooks:** `verifyWebhook`/`verifyWebhookQuery` (GET handshake), `verifySignature` (constant-time `X-Hub-Signature-256`), `parseWebhook`/`extractMessages`/`extractStatuses` with a typed `IncomingMessage` union and `MessageStatus`, and a framework-agnostic `WebhookHandler`.
 - **Client-side validation:** body/footer/header lengths, button counts and ids, list section/row limits, reaction emoji, flow CTA, product-list item counts, and address-message country/postal-code — all checked before the request.
-- **Typed errors:** `WhatsAppApiError`, `WhatsAppAuthenticationError`, `WhatsAppRateLimitError`, `WhatsAppReEngagementError`, `WhatsAppRequestError`, `WhatsAppValidationError`, and `WhatsAppWebhookError`.
+- **Typed errors:** `WhatsAppApiError`, `WhatsAppAuthenticationError`, `WhatsAppRateLimitError`, `WhatsAppReEngagementError`, `WhatsAppRequestError`, `WhatsAppValidationError`, and `WhatsAppWebhookError`, plus the `WhatsAppErrorCode` constants map for comparing `err.code` to named Graph error codes.
 
 ## Messaging
 
@@ -228,6 +230,34 @@ Uploaded media is retained by Meta for **30 days**, after which the id stops
 resolving. Per-type upload size limits apply: images 5 MB, video 16 MB, audio
 16 MB, documents 100 MB, and stickers 100 KB (static) / 500 KB (animated).
 
+## Phone number & WABA management
+
+Manage the business account and its phone numbers directly from the client.
+`client.phoneNumbers` methods default to the configured `phoneNumberId`, and
+`client.waba` methods default to the configured `businessAccountId`; both accept
+an optional trailing id to override the default per call. When neither is set,
+the call throws `WhatsAppValidationError`.
+
+```ts
+// List the phone numbers owned by the business account.
+const { data } = await client.waba.listPhoneNumbers();
+console.log(data.map((n) => n.display_phone_number));
+
+// Read the WhatsApp Business Profile for the configured phone number.
+const profile = await client.phoneNumbers.getBusinessProfile();
+console.log(profile?.about);
+
+// Register a phone number for the Cloud API with its six-digit two-step PIN.
+await client.phoneNumbers.register({ pin: '123456' });
+```
+
+The verification flow (`requestVerificationCode`/`verifyCode`), two-step PIN
+management (`setTwoStepPin` — there is no API to disable it), profile updates
+(`updateBusinessProfile`), and app webhook subscriptions
+(`client.waba.subscribeApp`/`unsubscribeApp`/`listSubscribedApps`) are all
+available. Phone-number deletion and template management are intentionally out
+of scope (see the [Roadmap](#roadmap)).
+
 ## Error handling
 
 Every API failure is a subclass of `WhatsAppApiError`, so `.code` (the Graph
@@ -250,6 +280,7 @@ try {
     const waitMs = err.retryAfterMs ?? 60_000;
     await new Promise((resolve) => setTimeout(resolve, waitMs));
   } else if (err instanceof WhatsAppReEngagementError) {
+    // Equivalent check: `err.code === WhatsAppErrorCode.RE_ENGAGEMENT_MESSAGE`.
     // Outside the 24-hour customer service window: fall back to a template.
     await client.messages.sendTemplate('15551234567', {
       name: 'hello_world',
@@ -275,6 +306,12 @@ status and Graph error `code`:
 All of the above extend `WhatsAppApiError`. Network, abort, and timeout failures
 raise `WhatsAppRequestError` (with an `isTimeout` flag). `WhatsAppValidationError`
 is raised locally before a request is sent and is not part of this mapping.
+
+For readable comparisons against `err.code`, the exported `WhatsAppErrorCode`
+constants map names the common Graph error codes (e.g.
+`WhatsAppErrorCode.ACCESS_TOKEN_EXPIRED`, `WhatsAppErrorCode.SPAM_RATE_LIMIT_HIT`,
+`WhatsAppErrorCode.TEMPLATE_NOT_EXIST`), so you can branch on a named constant
+instead of a magic number. Its value type is `WhatsAppErrorCodeValue`.
 
 ## Webhooks
 
@@ -377,7 +414,6 @@ Prefer `WebhookHandler` when you want the secrets bound once: `const handler = n
 ## Roadmap
 
 - **Template management** (create, list, update, delete message templates).
-- **Phone number and WABA management** (registration, business profile, webhook subscription).
 - Python and Rust ports of the SDK, following the TypeScript release.
 
 ## Contributing
