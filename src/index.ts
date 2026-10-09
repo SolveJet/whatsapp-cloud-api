@@ -8,12 +8,14 @@
  * inbound parsing), and the Media API (`client.media`) for upload, URL
  * resolution, download, and deletion. Also exposes phone-number management
  * (`client.phoneNumbers`), WhatsApp Business Account management
- * (`client.waba`), message-template management (`client.templates`), and the
- * Block API (`client.blocks`) for blocking, unblocking, and listing users.
+ * (`client.waba`), message-template management (`client.templates`), the
+ * Block API (`client.blocks`) for blocking, unblocking, and listing users, and
+ * Flows management (`client.flows`) for the interactive-form lifecycle.
  */
 
 import { HttpClient } from './http.js';
 import { BlocksResource } from './resources/blocks.js';
+import { FlowsResource } from './resources/flows.js';
 import { MediaResource } from './resources/media.js';
 import { MessagesResource } from './resources/messages.js';
 import { PhoneNumbersResource } from './resources/phone-numbers.js';
@@ -180,6 +182,26 @@ export type {
   ListBlockedUsersOptions,
 } from './types/blocks.js';
 
+export { FlowsResource } from './resources/flows.js';
+export type {
+  CreateFlowPayload,
+  CreateFlowResponse,
+  Flow,
+  FlowAsset,
+  FlowAssetList,
+  FlowCategory,
+  FlowJsonInput,
+  FlowList,
+  FlowPreview,
+  FlowStatus,
+  FlowValidationError,
+  GetPreviewOptions,
+  ListFlowsOptions,
+  UpdateFlowJsonOptions,
+  UpdateFlowJsonResponse,
+  UpdateFlowPayload,
+} from './types/flows.js';
+
 /** Default per-attempt request timeout in milliseconds. */
 export const DEFAULT_TIMEOUT_MS = 30000;
 
@@ -232,6 +254,7 @@ export class WhatsAppClient {
   private wabaResource?: WabaResource;
   private templatesResource?: TemplatesResource;
   private blocksResource?: BlocksResource;
+  private flowsResource?: FlowsResource;
 
   constructor(config: WhatsAppClientConfig) {
     if (!config.accessToken) {
@@ -344,6 +367,19 @@ export class WhatsAppClient {
       () => this.config.phoneNumberId,
     );
     return this.blocksResource;
+  }
+
+  /**
+   * Typed Flows management API. Lazily instantiated on first access and reused
+   * thereafter, bound to the internal request path and the configured default
+   * business account ID.
+   */
+  get flows(): FlowsResource {
+    this.flowsResource ??= new FlowsResource(
+      (options) => this.http.request(options),
+      () => this.config.businessAccountId,
+    );
+    return this.flowsResource;
   }
 
   /** Returns the configured phone number ID, if any. */
