@@ -15,6 +15,32 @@ A typed, zero-runtime-dependency TypeScript SDK for the [WhatsApp Cloud API](htt
 
 > **Status: stable (`1.x`).** Outbound messaging, inbound webhooks, the media lifecycle, phone-number/WABA management, and message-template management are all implemented. The public API is stable and follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html): breaking changes ship only in a new major version.
 
+## Why this library
+
+`@solvejet/whatsapp-cloud-api` is a complete, production-ready Node.js and TypeScript client for Meta's WhatsApp Cloud API. Use it to send WhatsApp messages, media, and templates, receive and verify incoming webhooks, and manage phone numbers, WhatsApp Business Accounts (WABA), and message templates — all from a single typed client.
+
+It is a good fit when you want:
+
+- A **zero-dependency** client (no `axios`, no `node-fetch`) that runs on the Node.js 20+ built-in `fetch`, keeping your dependency tree and install size small.
+- **End-to-end TypeScript types** so your editor autocompletes every message type, option, and response.
+- **Correctness by default** — documented WhatsApp API limits are validated before the request, and failures surface as specific, catchable error classes.
+- A **secure supply chain** — releases are published from CI with signed npm provenance.
+
+## What you can do
+
+| Capability                | API                                                                                              |
+| ------------------------- | ------------------------------------------------------------------------------------------------ |
+| Send text & media         | `client.messages.sendText`, `sendImage`, `sendVideo`, `sendAudio`, `sendDocument`, `sendSticker` |
+| Send templates            | `client.messages.sendTemplate`                                                                   |
+| Interactive messages      | `sendInteractiveButtons`, `sendInteractiveList`, `sendInteractiveCtaUrl`, `sendInteractiveFlow`  |
+| Location & contacts       | `client.messages.sendLocation`, `sendContacts`                                                   |
+| Reactions & typing        | `client.messages.sendReaction`, `markAsRead`, `sendTypingIndicator`                              |
+| Upload & download media   | `client.media.upload`, `getUrl`, `download`, `delete`                                            |
+| Receive & verify webhooks | `verifyWebhook`, `verifySignature`, `parseWebhook`, `extractMessages`, `WebhookHandler`          |
+| Manage phone numbers      | `client.phoneNumbers` (register, verify, business profile, two-step PIN)                         |
+| Manage WABAs              | `client.waba` (list numbers, subscribe webhooks)                                                 |
+| Manage templates          | `client.templates` (list, get, create, edit, delete)                                             |
+
 ## Contents
 
 - [Install](#install)
@@ -31,6 +57,7 @@ A typed, zero-runtime-dependency TypeScript SDK for the [WhatsApp Cloud API](htt
 - [Template management](#template-management)
 - [Error handling](#error-handling)
 - [Webhooks](#webhooks)
+- [FAQ](#faq)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [Security](#security)
@@ -448,6 +475,60 @@ Prefer `WebhookHandler` when you want the secrets bound once: `const handler = n
 
 - **The signature is computed over the RAW bytes.** Verify `verifySignature` against the exact bytes Meta sent (`express.raw(...)` above). Re-serializing parsed JSON changes the bytes and makes a valid signature fail — never run `JSON.stringify(req.body)` and verify that.
 - **Return `200` fast, then process.** Meta retries deliveries and will deactivate endpoints that respond slowly. Acknowledge immediately and do the real work asynchronously. Because of retries, deduplicate on the message id (`wamid`, `message.id`) to keep processing idempotent.
+
+## FAQ
+
+### How do I send a WhatsApp message with Node.js or TypeScript?
+
+Install `@solvejet/whatsapp-cloud-api`, create a `WhatsAppClient` with your access token and phone number ID, and call `client.messages.sendText(to, body)`:
+
+```ts
+import { WhatsAppClient } from '@solvejet/whatsapp-cloud-api';
+
+const client = new WhatsAppClient({
+  accessToken: process.env.WHATSAPP_ACCESS_TOKEN!,
+  phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID!,
+});
+
+await client.messages.sendText('15551234567', 'Hello from the SDK');
+```
+
+### How do I send a WhatsApp template message?
+
+Use `client.messages.sendTemplate` with the approved template name and language. Template messages are the only messages you can send outside the 24-hour customer service window.
+
+```ts
+await client.messages.sendTemplate('15551234567', {
+  name: 'hello_world',
+  language: { code: 'en_US' },
+});
+```
+
+To create, list, edit, or delete templates programmatically, use `client.templates` (see [Template management](#template-management)).
+
+### How do I verify and parse WhatsApp webhooks?
+
+Verify the `X-Hub-Signature-256` header against the **raw** request body with your App Secret, then parse the payload. The SDK provides `verifySignature`, `parseWebhook`, `extractMessages`, and `extractStatuses`, plus a `WebhookHandler` that binds the secrets once. See [Webhooks](#webhooks) for a full Express example.
+
+### Does this SDK have any dependencies?
+
+No. It has **zero runtime dependencies** and uses the native `fetch` and `AbortController` built into Node.js 20+, so it does not pull in `axios`, `node-fetch`, or any other HTTP library.
+
+### Which Node.js versions are supported?
+
+Node.js **20 or newer**. The package ships both ESM and CommonJS builds, so it works with `import` and `require`.
+
+### Do I need a Meta WhatsApp Business account?
+
+Yes. You need a Meta WhatsApp Business Platform setup: a WhatsApp Business Account (WABA), a business phone number ID, and an access token. The SDK talks to the Meta Graph API (Cloud API) on your behalf; it is not an unofficial or reverse-engineered client.
+
+### Is it an official WhatsApp SDK?
+
+No. This is an independent, open-source TypeScript client for Meta's official WhatsApp Cloud API. It is not affiliated with or endorsed by Meta or WhatsApp.
+
+### How do I handle rate limits and errors?
+
+Every API failure is a typed subclass of `WhatsAppApiError` — for example `WhatsAppRateLimitError` (with `retryAfterMs`) and `WhatsAppReEngagementError`. The HTTP core also retries `429`/`5xx`/network errors automatically with backoff. See [Error handling](#error-handling).
 
 ## Roadmap
 
