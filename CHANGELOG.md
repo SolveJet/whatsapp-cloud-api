@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-09
+
+### Added
+
+- Flows management via `client.flows` (WABA-scoped, defaults to the configured `businessAccountId`): `create`, `list`, `get`, `update`, `updateJson`, `publish`, `deprecate`, `delete`, `listAssets`, and `getPreview`. `create` validates a non-empty `name` and a non-empty `categories` array client-side before sending, and every flow-id method validates a non-empty `flowId`; `update` requires at least one editable field. `updateJson` uploads the Flow JSON as a multipart `FLOW_JSON` asset (a `Blob`, `Uint8Array`, or string wrapped as an `application/json` Blob) with no manual `Content-Type`. `getPreview` requests `fields=preview.invalidate(<bool>)`. Note: only `DRAFT` flows are deletable. New exported types `Flow`, `FlowList`, `FlowCategory`, `FlowStatus`, `FlowValidationError`, `CreateFlowPayload`, `CreateFlowResponse`, `UpdateFlowPayload`, `UpdateFlowJsonOptions`, `UpdateFlowJsonResponse`, `FlowAsset`, `FlowAssetList`, `FlowPreview`, `FlowJsonInput`, `ListFlowsOptions`, and `GetPreviewOptions`, plus the `FlowsResource` class.
+- Block API via `client.blocks` (phone-number-scoped, defaults to the configured `phoneNumberId`): `block`, `unblock`, and `list`. `block`/`unblock` accept up to 1000 users per call and reject an empty or over-limit array with `WhatsAppValidationError` before any request. Note: `unblock` is a `DELETE` with a JSON body (sent correctly by the HTTP core), only users who messaged the business in the last 24 hours can be blocked, and per-user failures surface in `block_users.failed_users` even when the overall call succeeds. New exported types `BlockedUser`, `FailedBlockUser`, `BlockUsersResponse`, `BlockedUserList`, and `ListBlockedUsersOptions`, plus the `BlocksResource` class.
+- Calling settings and lifecycle via `client.calls` (phone-number-scoped, defaults to the configured `phoneNumberId`): `getSettings`, `updateSettings`, `initiate`, `preAccept`, `accept`, `reject`, and `terminate`. `updateSettings` sends `{ calling: {...} }` with camelCase→snake_case mapping and passes `callHours`/`sip` through unchanged; the lifecycle methods POST to `{id}/calls` with the matching `action`. **Scope note: the WhatsApp Business Calling API SDP/WebRTC (and SIP) media plane is OUT OF SCOPE.** This SDK wraps the REST signaling + settings endpoints only — the caller owns the WebRTC/SIP media stack, and SDP offers/answers are passed through as opaque strings (never parsed or validated). New exported types `CallSdp`, `CallingSettings`, `PhoneNumberSettings`, `CallingSettingsUpdate`, `UpdateCallSettingsPayload`, `InitiateCallOptions`, and `CallResponse`, plus the `CallsResource` class.
+
 ## [1.1.0] - 2026-10-09
 
 ### Changed
@@ -111,7 +119,8 @@ as stable:
 - Interactive button and list headers now accept the structured `InteractiveHeader` type in addition to a plain string (backward compatible).
 - Removed stale "omitted" notes from the contact types now that the full contacts object is modeled.
 
-[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.5.0...v1.0.1
 [0.5.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.4.0...v0.5.0

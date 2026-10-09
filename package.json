@@ -1,6 +1,6 @@
 {
   "name": "@solvejet/whatsapp-cloud-api",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "TypeScript SDK for the WhatsApp Cloud API (Meta WhatsApp Business Platform). Send WhatsApp messages, media, templates, and interactive messages, verify and parse webhooks, and manage phone numbers, WhatsApp Business Accounts (WABA), and message templates. Zero runtime dependencies, built on native fetch for Node.js 20+.",
   "keywords": [
     "whatsapp",
