@@ -4,7 +4,7 @@
 
 Please report security vulnerabilities **privately** using GitHub's private security advisories:
 
-👉 https://github.com/solvejet/whatsapp-cloud-api/security/advisories/new
+👉 https://github.com/SolveJet/whatsapp-cloud-api/security/advisories/new
 
 Do **not** open a public issue for security problems.
 
@@ -24,10 +24,9 @@ npm audit signatures
 
 ## Supported versions
 
-The project is in early development. Security fixes are applied to the latest release line.
+Security fixes are applied to the latest `1.x` release line.
 
-| Version | Supported           |
-| ------- | ------------------- |
-| 0.x     | ✅ (in development) |
-
-Once a stable 1.x release is published, this table will be updated to reflect the supported release lines.
+| Version | Supported        |
+| ------- | ---------------- |
+| 1.x     | ✅               |
+| < 1.0   | ❌ (pre-release) |

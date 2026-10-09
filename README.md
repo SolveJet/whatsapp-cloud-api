@@ -13,7 +13,7 @@ A typed, zero-runtime-dependency TypeScript SDK for the [WhatsApp Cloud API](htt
 - **Typed error hierarchy** — rate limits, re-engagement, auth, and validation errors are distinct classes.
 - **Signed provenance** — every release is published from CI with [npm provenance](https://docs.npmjs.com/generating-provenance-statements).
 
-> **Status: active development (`0.x`).** Outbound messaging, inbound webhooks, the media lifecycle, phone-number/WABA management, and message-template management are implemented. While on `0.x`, minor versions may include breaking changes as the remaining surface lands.
+> **Status: stable (`1.x`).** Outbound messaging, inbound webhooks, the media lifecycle, phone-number/WABA management, and message-template management are all implemented. The public API is stable and follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html): breaking changes ship only in a new major version.
 
 ## Contents
 
