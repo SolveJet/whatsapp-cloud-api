@@ -1,6 +1,6 @@
 {
   "name": "@solvejet/whatsapp-cloud-api",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "TypeScript SDK for the WhatsApp Cloud API (Meta-hosted WhatsApp Business Platform)",
   "keywords": [
     "whatsapp",

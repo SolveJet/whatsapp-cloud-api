@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-09
+
+### Added
+
+- Message-template management via `client.templates`: `list` (`GET {WABA_ID}/message_templates` with optional `fields`, `limit`, `name`, `status`, `category`, `language`, and `after`/`before` paging cursors), `get` (`GET {TEMPLATE_ID}` with optional field selection), `create` (`POST {WABA_ID}/message_templates`), `edit` (`POST {TEMPLATE_ID}` for the editable `category`/`components`/`messageSendTtlSeconds` fields; `name` and `language` are immutable and editing an approved template resets it to `PENDING`), and `delete` (`DELETE {WABA_ID}/message_templates?name=...`, optionally scoped to one version via `hsm_id`). The list/create/delete methods accept an optional trailing `businessAccountId` and fall back to the configured `businessAccountId`; `get`/`edit` are scoped by a required template id. `create` validates the documented hard limits client-side before sending: name is lowercase alphanumeric plus underscores and at most 512 chars, a non-empty language and a valid category are required, components must be non-empty with exactly one BODY and at most one each of HEADER/BODY/FOOTER, BODY text ≤ 1024, HEADER/FOOTER text ≤ 60, and a BUTTONS component holds at most 10 buttons.
+- New exported types for template management: `TemplateCategory`, `TemplateStatus`, `TemplateParameterFormat`, `MessageTemplateComponent` (the management-side component union, aliased to avoid colliding with the send-side `TemplateComponent`), `TemplateButton`, `TemplateNamedParamExample`, `MessageTemplate`, `CreateTemplatePayload`, `EditTemplatePayload`, `TemplateList`, `CreateTemplateResponse`, plus the `TemplatesResource` class and its `ListTemplatesOptions`/`DeleteTemplateOptions` option types.
+
 ## [0.4.0] - 2026-10-08
 
 ### Added
@@ -71,7 +78,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Interactive button and list headers now accept the structured `InteractiveHeader` type in addition to a plain string (backward compatible).
 - Removed stale "omitted" notes from the contact types now that the full contacts object is modeled.
 
-[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v0.2.0...v0.3.0
