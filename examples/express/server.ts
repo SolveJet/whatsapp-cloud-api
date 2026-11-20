@@ -1,6 +1,6 @@
 import express from 'express';
 import { WebhookHandler, WhatsAppWebhookError } from '@solvejet/whatsapp-cloud-api';
-import { echoText, requireEnv } from '../shared/reply.js';
+import { processMessages, requireEnv } from '../shared/reply.js';
 
 const handler = new WebhookHandler({
   appSecret: requireEnv('WHATSAPP_APP_SECRET'),
@@ -21,19 +21,29 @@ app.get('/webhook', (req, res) => {
 // The signature is computed over the exact bytes Meta sent. express.raw keeps
 // them as a Buffer; do NOT put express.json() in front of this route.
 app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  const rawBody = req.body as Buffer;
+  const signature = req.get('x-hub-signature-256');
+  // Only a bad signature gets 401. Meta does not retry a 401 forever.
+  if (!handler.isValid(rawBody, signature)) {
+    res.sendStatus(401);
+    return;
+  }
+  let messages;
   try {
-    const { messages } = handler.parse(req.body as Buffer, req.get('x-hub-signature-256'));
-    res.sendStatus(200); // Acknowledge fast, then do the work.
-    for (const message of messages) {
-      echoText(message).catch((error: unknown) => console.error(error));
-    }
+    ({ messages } = handler.parse(rawBody, signature));
   } catch (error) {
     if (error instanceof WhatsAppWebhookError) {
-      res.sendStatus(401);
+      // Signed but malformed: acknowledge it, otherwise Meta retries a payload
+      // that can never parse for days.
+      console.error('Ignoring malformed webhook payload:', error.message);
+      res.sendStatus(200);
       return;
     }
-    throw error;
+    console.error(error);
+    res.sendStatus(500);
+    return;
   }
+  res.sendStatus(200); // Acknowledge fast, then do the work.
+  void processMessages(messages);
 });
-
 app.listen(3000, () => console.log('Listening on http://localhost:3000/webhook'));
