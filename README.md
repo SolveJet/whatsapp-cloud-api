@@ -70,7 +70,7 @@ Facts below were checked against the npm registry and GitHub on 2026-11-21. Chec
 | [`@kapso/whatsapp-cloud-api`](https://www.npmjs.com/package/@kapso/whatsapp-cloud-api)      | Cloud API SDK                                | Last npm release `0.4.0`, 2026-10-23                                   | `zod`                                   |
 | [Baileys](https://github.com/WhiskeySockets/Baileys), [whatsapp-web.js](https://wwebjs.dev) | Unofficial clients that emulate WhatsApp Web | Not the Cloud API                                                      | See each project                        |
 
-Baileys and whatsapp-web.js automate a regular WhatsApp account instead of using Meta's business API. WhatsApp's terms do not permit unofficial clients, and accounts using them can be banned. If you need a supported business integration, use the Cloud API through this package or one of the other SDKs above.
+Baileys and whatsapp-web.js drive a regular WhatsApp account through the WhatsApp Web protocol or browser automation, not through Meta's business API. WhatsApp's [terms of service](https://www.whatsapp.com/legal/terms-of-service) restrict automated or unauthorized access to its services, so check them before using these projects for a business integration. The Cloud API, through this package or one of the other SDKs above, is the supported route for business messaging.
 
 Pick this package when you want no runtime dependencies, strict TypeScript types and a small, testable surface. Pick another if it covers something you need that this one does not, for example a hosted platform or generated OpenAPI clients.
 
@@ -206,7 +206,7 @@ await client.messages.sendTypingIndicator('wamid.HBgL...');
 
 ## Usernames and BSUIDs
 
-Users who enable WhatsApp usernames may not share a phone number. Meta then identifies them by a business-scoped user ID (BSUID, for example `US.13491208655302741918`) and may omit `wa_id`, `from` or `recipient_id`. Those fields are still typed `string`, so check them at runtime.
+Users who enable WhatsApp usernames may not share a phone number. Meta then identifies them by a business-scoped user ID (BSUID, for example `US.13491208655302741918`) and may omit `wa_id`, `from` or `recipient_id`. `wa_id`, `from` and `recipient_id` are typed as `string` for backward compatibility but may be absent in webhooks for username-based users, so do not assume they are always present; check them at runtime.
 
 Webhook types expose these optional fields:
 

@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The default Graph API version is now `v26.0` (was `v23.0`). `apiVersion` is still configurable.
-- Package description rewritten.
+- `wa_id`, `from` and `recipient_id` stay typed `string` even though Meta may omit them in some username-based events. A future major version may make them optional.
 
 ### Removed
 
