@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=1280, initial-scale=1" />
+    <title>@solvejet/whatsapp-cloud-api social preview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 1280px;
+        height: 640px;
+        overflow: hidden;
+      }
+      .wallpaper {
+        background-color: #efe8dc;
+        background-image: radial-gradient(#d9cfbd 1.5px, transparent 1.6px);
+        background-size: 22px 22px;
+      }
+      .tail-in::before,
+      .tail-out::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        width: 12px;
+        height: 14px;
+      }
+      .tail-in::before {
+        left: -8px;
+        background: #fff;
+        clip-path: polygon(100% 0, 0 0, 100% 100%);
+      }
+      .tail-out::before {
+        right: -8px;
+        background: #d9fdd3;
+        clip-path: polygon(0 0, 100% 0, 0 100%);
+      }
+    </style>
+  </head>
+  <body class="font-sans antialiased">
+    <main class="relative h-[640px] w-[1280px] overflow-hidden wallpaper">
+      <!-- Left panel -->
+      <section class="absolute inset-y-0 left-0 w-[690px] bg-[#0b3d36] text-white">
+        <div class="absolute left-16 top-16 right-0 bottom-16 flex flex-col">
+          <div class="flex items-center gap-2.5 font-mono text-[20px] font-medium text-[#8fe0b5]">
+            <i data-lucide="message-square-code" class="h-6 w-6"></i>
+            <span>@solvejet/</span>
+          </div>
+          <h1 class="mt-2 font-mono text-[56px] font-extrabold leading-[1.05] tracking-tight">
+            whatsapp-<br />cloud-api
+          </h1>
+          <p
+            class="mt-5 max-w-[600px] text-balance text-[27px] font-semibold leading-[1.2] text-[#e4f4ee]"
+          >
+            Typed TypeScript SDK for the WhatsApp Cloud API
+          </p>
+
+          <!-- flow -->
+          <div class="mt-8 flex items-center gap-3.5 text-[20px] font-semibold text-[#e4f4ee]">
+            <span class="flex items-center gap-2"
+              ><i data-lucide="webhook" class="h-6 w-6 text-[#8fe0b5]"></i>Webhook</span
+            >
+            <i data-lucide="arrow-right" class="h-4 w-4 text-[#7fb3a5]"></i>
+            <span class="flex items-center gap-2"
+              ><i data-lucide="shield-check" class="h-6 w-6 text-[#8fe0b5]"></i>Verify</span
+            >
+            <i data-lucide="arrow-right" class="h-4 w-4 text-[#7fb3a5]"></i>
+            <span class="flex items-center gap-2"
+              ><i data-lucide="send" class="h-6 w-6 text-[#8fe0b5]"></i>Reply</span
+            >
+          </div>
+
+          <div
+            class="mt-auto mb-5 w-[570px] rounded-xl border border-[#1f5b51] bg-[#082f2a] whitespace-nowrap px-5 py-4 font-mono text-[18px] leading-6"
+          >
+            <span class="text-[#8fe0b5]">await</span> client.messages.<span class="text-[#f5d58a]"
+              >sendText</span
+            >(to, <span class="text-[#bfe7ff]">'Hello!'</span>)
+          </div>
+
+          <p class="text-[15px] font-medium leading-5 text-[#b9d9cf]">
+            Independent open-source project.<br />Not affiliated with Meta or WhatsApp.
+          </p>
+        </div>
+      </section>
+
+      <!-- Chat card -->
+      <section
+        class="absolute left-[742px] top-16 h-[512px] w-[474px] overflow-hidden rounded-[20px] bg-[#efe8dc] shadow-[0_12px_32px_rgba(11,61,54,0.22)] ring-1 ring-black/10 wallpaper"
+      >
+        <header class="flex h-[76px] items-center gap-3 bg-[#0f5c4f] px-5 text-white">
+          <div
+            class="flex h-11 w-11 items-center justify-center rounded-full bg-[#cfe9e1] text-[#0b3d36]"
+          >
+            <i data-lucide="headset" class="h-6 w-6"></i>
+          </div>
+          <div class="leading-tight">
+            <div class="text-[19px] font-semibold">Acme Support</div>
+            <div class="mt-0.5 flex items-center gap-1.5 text-[14px] text-[#d4ece5]">
+              <span class="h-2 w-2 rounded-full bg-[#5be08f]"></span>online
+            </div>
+          </div>
+          <div class="ml-auto flex gap-4 text-[#d4ece5]">
+            <i data-lucide="video" class="h-5 w-5"></i>
+            <i data-lucide="phone" class="h-5 w-5"></i>
+          </div>
+        </header>
+
+        <div class="flex flex-col gap-3 px-5 pt-5">
+          <div class="flex justify-center">
+            <span
+              class="rounded-lg bg-white/80 px-3 py-1 text-[13px] font-semibold uppercase tracking-wide text-[#4b5b57]"
+              >Today</span
+            >
+          </div>
+
+          <!-- incoming -->
+          <div class="flex">
+            <div
+              class="tail-in relative max-w-[300px] rounded-xl rounded-tl-none bg-white px-3.5 py-2 shadow-sm"
+            >
+              <p class="text-[18px] leading-[1.3] text-[#111b21]">Where is my order #4821?</p>
+              <div class="mt-0.5 text-right text-[12.5px] text-[#4b5b57]">10:41</div>
+            </div>
+          </div>
+
+          <!-- outgoing text -->
+          <div class="flex justify-end">
+            <div
+              class="tail-out relative max-w-[330px] rounded-xl rounded-tr-none bg-[#d9fdd3] px-3.5 py-2 shadow-sm"
+            >
+              <p class="text-[18px] leading-[1.3] text-[#111b21]">
+                Shipped today. Arriving Thursday.
+              </p>
+              <div class="mt-0.5 flex items-center justify-end gap-1 text-[12.5px] text-[#4b5b57]">
+                10:41
+                <i data-lucide="check-check" class="h-[18px] w-[18px] text-[#1d8fc4]"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- interactive reply buttons -->
+          <div class="flex flex-col items-end gap-1.5">
+            <div class="relative w-[330px] rounded-xl bg-[#d9fdd3] px-3.5 py-2 shadow-sm">
+              <p class="text-[18px] leading-[1.3] text-[#111b21]">Need anything else?</p>
+              <div class="mt-0.5 flex items-center justify-end gap-1 text-[12.5px] text-[#4b5b57]">
+                10:42
+                <i data-lucide="check-check" class="h-[18px] w-[18px] text-[#1d8fc4]"></i>
+              </div>
+            </div>
+            <div class="flex w-[330px] flex-col gap-1.5">
+              <div
+                class="flex items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-[17px] font-semibold text-[#0a6b8f] shadow-sm"
+              >
+                <i data-lucide="package-search" class="h-5 w-5"></i>Track order
+              </div>
+              <div
+                class="flex items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-[17px] font-semibold text-[#0a6b8f] shadow-sm"
+              >
+                <i data-lucide="user-round" class="h-5 w-5"></i>Talk to an agent
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          class="absolute inset-x-0 bottom-0 flex h-[60px] items-center gap-3 bg-[#f4efe6]/95 px-4"
+        >
+          <i data-lucide="smile" class="h-6 w-6 text-[#4b5b57]"></i>
+          <div class="h-10 flex-1 rounded-full bg-white px-4 text-[16px] leading-10 text-[#5d6b67]">
+            Type a message
+          </div>
+          <div
+            class="flex h-10 w-10 items-center justify-center rounded-full bg-[#0f5c4f] text-white"
+          >
+            <i data-lucide="send-horizontal" class="h-5 w-5"></i>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

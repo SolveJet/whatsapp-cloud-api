@@ -15,5 +15,12 @@ export default tseslint.config(
       sourceType: 'module',
     },
   },
+  {
+    // Render script: Node globals plus browser globals used inside page.evaluate.
+    files: ['docs/assets/*.mjs'],
+    languageOptions: {
+      globals: { process: 'readonly', URL: 'readonly', window: 'readonly', document: 'readonly' },
+    },
+  },
   eslintConfigPrettier,
 );
