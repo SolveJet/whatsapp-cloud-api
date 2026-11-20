@@ -70,6 +70,18 @@ describe('extractors on malformed shapes', () => {
     expect(result.statuses).toEqual([]);
   });
 
+  it('treats a hand-built payload whose entry is not an array as empty', () => {
+    const payload = { object: 'whatsapp_business_account', entry: 'x' } as never;
+    expect(extractMessages(payload)).toEqual([]);
+    expect(extractStatuses(payload)).toEqual([]);
+  });
+
+  it('throws WhatsAppWebhookError for an unsupported body type when no secret is set', () => {
+    expect(() => new WebhookHandler().parse(null as never)).toThrow(
+      /string, Uint8Array or ArrayBuffer/,
+    );
+  });
+
   it('ignores a messages value that is not an array', () => {
     expect(extractMessages(messagesPayload({ messages: 'abc' }))).toEqual([]);
     expect(extractMessages(messagesPayload({ messages: { length: 3 } }))).toEqual([]);
