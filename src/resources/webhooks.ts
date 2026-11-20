@@ -34,6 +34,10 @@ export interface WebhookVerificationResult {
 /** Prefix Meta uses on the `X-Hub-Signature-256` header value. */
 const SIGNATURE_PREFIX = 'sha256=';
 
+/** True for a string with at least one character. */
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === 'string' && value.length > 0;
+
 /**
  * Constant-time string comparison. Returns `false` immediately when the two
  * strings differ in byte length (guarding {@link timingSafeEqual}, which throws
@@ -59,6 +63,9 @@ const constantTimeEqual = (a: string, b: string): boolean => {
  * (a missing challenge yields an empty-string body on an otherwise valid
  * request).
  *
+ * Fails closed: an `expectedToken` that is empty or not a string always yields
+ * `403`, so an unset environment variable can never accept a request.
+ *
  * @param params - The decoded `hub.mode`, `hub.verify_token`, `hub.challenge`.
  * @param expectedToken - The verify token configured for this endpoint.
  */
@@ -69,6 +76,7 @@ export const verifyWebhook = (
   const { mode, token } = params;
   if (
     mode === 'subscribe' &&
+    isNonEmptyString(expectedToken) &&
     typeof token === 'string' &&
     constantTimeEqual(token, expectedToken)
   ) {
@@ -112,12 +120,17 @@ export const verifyWebhookQuery = (
  * @param signatureHeader - The `X-Hub-Signature-256` header value, if present.
  * @param appSecret - The App Secret used to compute the expected signature.
  * @returns `true` only when the signature is present, well-formed, and matches.
+ *   Returns `false` when `appSecret` is not a non-empty string, so an empty key
+ *   can never validate a signature.
  */
 export const verifySignature = (
   rawBody: string | Buffer,
   signatureHeader: string | undefined,
   appSecret: string,
 ): boolean => {
+  if (!isNonEmptyString(appSecret)) {
+    return false;
+  }
   if (typeof signatureHeader !== 'string' || !signatureHeader.startsWith(SIGNATURE_PREFIX)) {
     return false;
   }
@@ -216,22 +229,48 @@ export const extractStatuses = (payload: WebhookPayload): MessageStatus[] => {
 };
 
 /**
+ * Returns `value` when it is a non-empty string, otherwise throws. Used so that
+ * a misconfigured environment variable cannot silently disable verification.
+ */
+const requireConfiguredSecret = (value: unknown, name: string): string => {
+  if (!isNonEmptyString(value)) {
+    throw new WhatsAppWebhookError(
+      `WebhookHandler config "${name}" was provided but is empty or not a string. ` +
+        `Omit the key to disable it, or check the environment variable it comes from.`,
+    );
+  }
+  return value;
+};
+
+/**
  * Framework-agnostic webhook handler binding a verify token and/or App Secret.
  *
  * It imports no web framework; the caller wires it into their HTTP layer,
  * passing the raw request body for signature verification. See the README for a
  * complete Express example.
+ *
+ * Configuration rules:
+ * - Omitting the `appSecret` key entirely means no signature enforcement:
+ *   {@link WebhookHandler.parse} and {@link WebhookHandler.verifyOrThrow} accept
+ *   unsigned bodies. Only do this when something else authenticates the request.
+ * - Passing `appSecret` or `verifyToken` with an `undefined` or empty value
+ *   (typically an unset environment variable) throws
+ *   {@link WhatsAppWebhookError} instead of silently disabling verification.
  */
 export class WebhookHandler {
   private readonly appSecret?: string;
   private readonly verifyToken?: string;
 
+  /**
+   * @throws {@link WhatsAppWebhookError} when `appSecret` or `verifyToken` is
+   *   present in `config` but is not a non-empty string.
+   */
   constructor(config: WebhookHandlerConfig = {}) {
-    if (config.appSecret !== undefined) {
-      this.appSecret = config.appSecret;
+    if (Object.hasOwn(config, 'appSecret')) {
+      this.appSecret = requireConfiguredSecret(config.appSecret, 'appSecret');
     }
-    if (config.verifyToken !== undefined) {
-      this.verifyToken = config.verifyToken;
+    if (Object.hasOwn(config, 'verifyToken')) {
+      this.verifyToken = requireConfiguredSecret(config.verifyToken, 'verifyToken');
     }
   }
 
