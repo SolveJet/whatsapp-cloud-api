@@ -139,6 +139,7 @@ export type {
   WebhookHandlerConfig,
   WebhookMessageContext,
   WebhookMessageError,
+  WebhookMessageReferral,
   WebhookMetadata,
   WebhookPayload,
   WebhookRawBody,
