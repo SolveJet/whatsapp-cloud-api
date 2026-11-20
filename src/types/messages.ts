@@ -11,11 +11,34 @@ export interface SendMessageResponse {
   /** Always `whatsapp` for Cloud API responses. */
   messaging_product: 'whatsapp';
   /** The contacts the message was addressed to, echoing the input identifier. */
-  contacts: { input: string; wa_id: string }[];
+  contacts: {
+    input: string;
+    /** May be absent when the message was sent to a BSUID. */
+    wa_id: string;
+    /** The recipient's BSUID, when returned by Meta. */
+    user_id?: string;
+    /** The recipient's parent BSUID, when parent BSUIDs are enabled. */
+    parent_user_id?: string;
+  }[];
   /** The accepted messages, each carrying its WhatsApp message ID (WAMID). */
   messages: { id: string; message_status?: string }[];
 }
 
+/**
+ * Addresses a recipient by business-scoped user ID (BSUID) instead of phone
+ * number. Sent as `recipient` with `to` omitted.
+ */
+export interface BsuidRecipient {
+  /** A BSUID or parent BSUID, e.g. `US.13491208655302741918`. */
+  bsuid: string;
+}
+/** A recipient: a phone number string, or a {@link BsuidRecipient}. */
+export type MessageRecipient = string | BsuidRecipient;
+/** Options for {@link MessagesResource.sendRaw}. */
+export interface SendRawOptions {
+  /** Phone number ID to send from; defaults to the client's configured one. */
+  phoneNumberId?: string;
+}
 /** Options for {@link MessagesResource.sendText}. */
 export interface TextMessageOptions {
   /** Enable link preview rendering for URLs found in the body. */
