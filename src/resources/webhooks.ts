@@ -186,11 +186,20 @@ export const isStatusEvent = (
   value: WebhookValue,
 ): value is WebhookValue & { statuses: MessageStatus[] } => Array.isArray(value.statuses);
 
-/** Yields each change `value` across all entries, skipping malformed shapes. */
+/**
+ * Collects each change `value` from `messages` changes across all entries,
+ * skipping malformed shapes. A change is read when its `field` is `messages`
+ * or is not a string (hand-built envelopes may omit it); every other field
+ * (for example `calls`, whose `statuses` are call events) is ignored.
+ */
 const iterateValues = (payload: WebhookPayload): WebhookValue[] => {
   const values: WebhookValue[] = [];
   for (const entry of payload.entry ?? []) {
     for (const change of entry?.changes ?? []) {
+      const field: unknown = change?.field;
+      if (typeof field === 'string' && field !== 'messages') {
+        continue;
+      }
       const value = change?.value;
       if (isRecord(value)) {
         values.push(value as WebhookValue);
@@ -201,8 +210,9 @@ const iterateValues = (payload: WebhookPayload): WebhookValue[] => {
 };
 
 /**
- * Flattens all inbound messages across `entry[].changes[].value`. Returns an
- * empty array when the payload carries none.
+ * Flattens all inbound messages across `entry[].changes[].value` for changes
+ * whose `field` is `messages`. Returns an empty array when the payload carries
+ * none.
  */
 export const extractMessages = (payload: WebhookPayload): IncomingMessage[] => {
   const messages: IncomingMessage[] = [];
@@ -215,8 +225,10 @@ export const extractMessages = (payload: WebhookPayload): IncomingMessage[] => {
 };
 
 /**
- * Flattens all message status updates across `entry[].changes[].value`. Returns
- * an empty array when the payload carries none.
+ * Flattens all message status updates across `entry[].changes[].value` for
+ * changes whose `field` is `messages`. Status values under other fields, such
+ * as `calls`, are not message statuses and are ignored. Returns an empty array
+ * when the payload carries none.
  */
 export const extractStatuses = (payload: WebhookPayload): MessageStatus[] => {
   const statuses: MessageStatus[] = [];
