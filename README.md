@@ -105,7 +105,7 @@ required; everything else has a sensible default.
 | `accessToken`       | `string` | — (required)                 | Permanent or temporary access token used to authenticate requests.               |
 | `phoneNumberId`     | `string` | —                            | Default sender phone number ID for messaging and media calls.                    |
 | `businessAccountId` | `string` | —                            | WhatsApp Business Account (WABA) ID. Default id for `client.waba` methods.       |
-| `apiVersion`        | `string` | `v23.0`                      | Graph API version to target.                                                     |
+| `apiVersion`        | `string` | `v26.0`                      | Graph API version to target.                                                     |
 | `baseUrl`           | `string` | `https://graph.facebook.com` | Base URL for the Graph API (override for a proxy or a mock).                     |
 | `timeoutMs`         | `number` | `30000`                      | Per-attempt request timeout in milliseconds.                                     |
 | `maxRetries`        | `number` | `2`                          | Max retries on `429`/`5xx`/network errors (total attempts = `maxRetries` + `1`). |
@@ -118,14 +118,14 @@ const client = new WhatsAppClient({
   accessToken: process.env.WHATSAPP_ACCESS_TOKEN!,
   phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID!,
   businessAccountId: process.env.WHATSAPP_WABA_ID,
-  apiVersion: 'v23.0',
+  apiVersion: 'v26.0',
   timeoutMs: 15_000,
   maxRetries: 3,
 });
 
 client.getPhoneNumberId(); // the configured default sender, if any
-client.getApiVersion(); // 'v23.0'
-client.getBaseUrl(); // 'https://graph.facebook.com/v23.0'
+client.getApiVersion(); // 'v26.0'
+client.getBaseUrl(); // 'https://graph.facebook.com/v26.0'
 ```
 
 **Per-call phone number override.** Every message and media method accepts an

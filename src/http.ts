@@ -20,7 +20,7 @@ import type { GraphErrorEnvelope, RequestOptions, ResponseType } from './types/c
 export interface HttpClientConfig {
   /** Access token used for the `Authorization: Bearer` header. */
   accessToken: string;
-  /** Fully resolved, versioned base URL, e.g. `https://graph.facebook.com/v23.0`. */
+  /** Fully resolved, versioned base URL, e.g. `https://graph.facebook.com/v26.0`. */
   baseUrl: string;
   /** Per-attempt timeout in milliseconds. */
   timeoutMs: number;

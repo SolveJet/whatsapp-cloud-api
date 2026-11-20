@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WhatsAppClient, WhatsAppValidationError } from '../src/index.js';
 
-const BASE_URL = 'https://graph.facebook.com/v23.0';
+const BASE_URL = 'https://graph.facebook.com/v26.0';
 const WABA_ID = '9999999999';
 const OTHER_WABA_ID = '8888888888';
 const FLOW_ID = 'flow-123';

@@ -7,7 +7,7 @@ import {
 } from '../src/index.js';
 import type { MediaInfoResponse } from '../src/types/media.js';
 
-const BASE_URL = 'https://graph.facebook.com/v23.0';
+const BASE_URL = 'https://graph.facebook.com/v26.0';
 const PHONE_ID = '1111111111';
 const MEDIA_ID = 'media-123';
 const DOWNLOAD_URL = 'https://lookaside.fbsbx.com/whatsapp_business/attachments/abc?token=xyz';

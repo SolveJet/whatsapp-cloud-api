@@ -6,7 +6,7 @@ import {
   WhatsAppRequestError,
 } from '../src/errors.js';
 
-const BASE_URL = 'https://graph.facebook.com/v23.0';
+const BASE_URL = 'https://graph.facebook.com/v26.0';
 
 const makeClient = (overrides?: { maxRetries?: number; timeoutMs?: number }): HttpClient =>
   new HttpClient({
