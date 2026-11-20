@@ -18,12 +18,29 @@ export interface WebhookMetadata {
   phone_number_id: string;
 }
 
-/** A contact profile echoed alongside incoming messages. */
+/**
+ * A contact profile echoed alongside incoming messages and message statuses.
+ *
+ * Meta may omit `wa_id` when the user has enabled WhatsApp usernames and no
+ * phone number can be shared; it is still typed `string` here so existing code
+ * keeps compiling, so check it at runtime. `user_id` (the business-scoped user
+ * ID, BSUID) is the stable identifier.
+ *
+ * @see https://developers.facebook.com/documentation/business-messaging/whatsapp/business-scoped-user-ids
+ */
 export interface WebhookContact {
-  /** The WhatsApp ID (wa_id) of the contact. */
+  /** The WhatsApp ID (wa_id) of the contact. May be absent for username users. */
   wa_id: string;
+  /** The contact's business-scoped user ID (BSUID), e.g. `US.13491208655302741918`. */
+  user_id?: string;
+  /** The contact's parent BSUID, only present when parent BSUIDs are enabled. */
+  parent_user_id?: string;
   /** The contact's profile, when provided. */
-  profile?: { name?: string };
+  profile?: {
+    name?: string;
+    /** The user's WhatsApp username, only present when the user enabled usernames. */
+    username?: string;
+  };
 }
 
 /** Reply context linking a message to a previous one. */
@@ -36,8 +53,17 @@ export interface WebhookMessageContext {
 
 /** Fields present on every inbound message variant. */
 interface IncomingMessageBase {
-  /** The wa_id of the sender. */
+  /**
+   * The wa_id of the sender. Meta may omit it when the sender has enabled
+   * usernames and no phone number can be shared; use `from_user_id` then.
+   */
   from: string;
+  /** The sender's business-scoped user ID (BSUID). */
+  from_user_id?: string;
+  /** The sender's parent BSUID, only present when parent BSUIDs are enabled. */
+  from_parent_user_id?: string;
+  /** The group ID, when the message was sent in a group. */
+  group_id?: string;
   /** The WhatsApp message ID (WAMID) of this message. */
   id: string;
   /** Unix epoch seconds (as a string) when the message was sent. */
@@ -175,6 +201,30 @@ export interface ReactionIncomingMessage extends IncomingMessageBase {
 }
 
 /**
+ * A system message, for example when a user changes their phone number or
+ * their BSUID changes. `system.type` is `user_changed_number` or
+ * `user_changed_user_id`; handle both. Other values may appear as Meta adds them.
+ */
+export interface SystemIncomingMessage extends IncomingMessageBase {
+  type: 'system';
+  system: {
+    /** Human-readable description of the change. */
+    body?: string;
+    /** The system event type, e.g. `user_changed_number` or `user_changed_user_id`. */
+    type: string;
+    /** The user's new phone number; omitted when it cannot be shared. */
+    wa_id?: string;
+    /** The user's new BSUID. */
+    user_id?: string;
+    /** The user's new parent BSUID, when parent BSUIDs are enabled. */
+    parent_user_id?: string;
+    /** The BSUID the user had before the change. */
+    previous_user_id?: string;
+    /** The parent BSUID the user had before the change. */
+    previous_parent_user_id?: string;
+  };
+}
+/**
  * Fallback shape for message types this SDK does not model explicitly.
  *
  * Unrecognized `type` values still parse at runtime and are returned by
@@ -212,7 +262,8 @@ export type IncomingMessage =
   | ContactsIncomingMessage
   | InteractiveIncomingMessage
   | ButtonIncomingMessage
-  | ReactionIncomingMessage;
+  | ReactionIncomingMessage
+  | SystemIncomingMessage;
 
 /** An error entry attached to a failed/warning message status. */
 export interface WebhookMessageError {
@@ -234,8 +285,15 @@ export interface MessageStatus {
   status: 'sent' | 'delivered' | 'read' | 'failed' | 'deleted' | 'warning';
   /** Unix epoch seconds (as a string) when the status was produced. */
   timestamp: string;
-  /** The wa_id of the recipient the status concerns. */
+  /**
+   * The wa_id of the recipient the status concerns. Meta may omit it when the
+   * recipient has enabled usernames; use `recipient_user_id` then.
+   */
   recipient_id: string;
+  /** The recipient's business-scoped user ID (BSUID). */
+  recipient_user_id?: string;
+  /** The recipient's parent BSUID, only present when parent BSUIDs are enabled. */
+  recipient_parent_user_id?: string;
   /** Conversation/pricing context, when provided by Meta. */
   conversation?: {
     id: string;
@@ -253,16 +311,16 @@ export interface MessageStatus {
 }
 
 /**
- * The `value` object inside a webhook change. Carries EITHER `contacts` +
- * `messages` (incoming) OR `statuses` (updates), never both; `errors` may also
- * appear independently.
+ * The `value` object inside a webhook change. Carries EITHER `messages`
+ * (incoming) OR `statuses` (updates), never both; `contacts` accompanies either
+ * one, and `errors` may also appear independently.
  */
 export interface WebhookValue {
   /** Always `whatsapp` for Cloud API webhook values. */
   messaging_product: 'whatsapp';
   /** Business phone number metadata for the event. */
   metadata: WebhookMetadata;
-  /** Contact profiles for incoming messages. */
+  /** Contact profiles for incoming messages and (except failed) message statuses. */
   contacts?: WebhookContact[];
   /** Inbound messages. */
   messages?: IncomingMessage[];
