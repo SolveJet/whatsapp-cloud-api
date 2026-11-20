@@ -8,7 +8,20 @@ Please report security vulnerabilities **privately** using GitHub's private secu
 
 Do **not** open a public issue for security problems.
 
-We will acknowledge your report, investigate, and keep you informed of the resolution. Please give us a reasonable amount of time to address the issue before any public disclosure.
+If GitHub advisories are unavailable to you, email hello@solvejet.net as a fallback. Do not put secrets or exploit details in plain email; ask for a private channel and share details there.
+
+### Response times
+
+- We acknowledge a report within 3 business days.
+- We give an initial assessment within 7 days.
+- We aim to release a fix or mitigation within 90 days.
+- We disclose publicly, in coordination with the reporter, after a fix is released. If no fix is possible, we disclose after 90 days by agreement with the reporter.
+
+### Scope
+
+In scope: vulnerabilities in this package's code, for example webhook signature verification, request handling, or token leakage in errors and logs.
+
+Out of scope: vulnerabilities in the WhatsApp or Meta platform itself, and vulnerabilities in your own deployment.
 
 ### Do not include secrets
 
