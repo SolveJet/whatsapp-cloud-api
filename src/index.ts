@@ -63,6 +63,7 @@ export type {
   AddressMessagePayload,
   AddressMessageSavedAddress,
   AddressMessageValues,
+  BsuidRecipient,
   CaptionedMedia,
   Contact,
   ContactAddress,
@@ -85,12 +86,14 @@ export type {
   LocationPayload,
   LocationRequestPayload,
   MediaSource,
+  MessageRecipient,
   ProductListPayload,
   ProductPayload,
   ProductSection,
   ReactionPayload,
   SendMessageResponse,
   SendOptions,
+  SendRawOptions,
   TemplateComponent,
   TemplateParameter,
   TemplatePayload,
@@ -125,6 +128,7 @@ export type {
   ParsedWebhook,
   ReactionIncomingMessage,
   StickerIncomingMessage,
+  SystemIncomingMessage,
   TextIncomingMessage,
   UnknownIncomingMessage,
   VideoIncomingMessage,
@@ -223,7 +227,7 @@ export const DEFAULT_TIMEOUT_MS = 30000;
 export const DEFAULT_MAX_RETRIES = 2;
 
 /** Default Graph API version targeted by the client. */
-export const DEFAULT_API_VERSION = 'v23.0';
+export const DEFAULT_API_VERSION = 'v26.0';
 
 /** Default base URL for the Meta Graph API. */
 export const DEFAULT_BASE_URL = 'https://graph.facebook.com';
@@ -236,7 +240,7 @@ export interface WhatsAppClientConfig {
   phoneNumberId?: string;
   /** WhatsApp Business Account (WABA) ID. */
   businessAccountId?: string;
-  /** Graph API version, e.g. `v23.0`. Defaults to {@link DEFAULT_API_VERSION}. */
+  /** Graph API version, e.g. `v26.0`. Defaults to {@link DEFAULT_API_VERSION}. */
   apiVersion?: string;
   /** Base URL for the Graph API. Defaults to {@link DEFAULT_BASE_URL}. */
   baseUrl?: string;
@@ -425,7 +429,7 @@ export class WhatsAppClient {
     return this.config.apiVersion;
   }
 
-  /** Returns the resolved, versioned base URL, e.g. `https://graph.facebook.com/v23.0`. */
+  /** Returns the resolved, versioned base URL, e.g. `https://graph.facebook.com/v26.0`. */
   getBaseUrl(): string {
     return `${trimTrailingSlashes(this.config.baseUrl)}/${this.config.apiVersion}`;
   }

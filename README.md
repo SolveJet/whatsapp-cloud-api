@@ -1,86 +1,18 @@
 # @solvejet/whatsapp-cloud-api
 
+Zero-dependency, fetch-based TypeScript SDK for the WhatsApp Cloud API.
+
 [![CI](https://github.com/SolveJet/whatsapp-cloud-api/actions/workflows/ci.yml/badge.svg)](https://github.com/SolveJet/whatsapp-cloud-api/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@solvejet/whatsapp-cloud-api.svg)](https://www.npmjs.com/package/@solvejet/whatsapp-cloud-api)
+[![npm downloads](https://img.shields.io/npm/dm/@solvejet/whatsapp-cloud-api.svg)](https://www.npmjs.com/package/@solvejet/whatsapp-cloud-api)
+[![Node version](https://img.shields.io/node/v/@solvejet/whatsapp-cloud-api.svg)](https://nodejs.org)
+[![Published with provenance](https://img.shields.io/badge/provenance-OIDC%20trusted%20publishing-brightgreen)](https://www.npmjs.com/package/@solvejet/whatsapp-cloud-api)
+[![Socket Badge](https://badge.socket.dev/npm/package/@solvejet/whatsapp-cloud-api)](https://socket.dev/npm/package/@solvejet/whatsapp-cloud-api)
 [![license](https://img.shields.io/npm/l/@solvejet/whatsapp-cloud-api.svg)](./LICENSE)
 
-A typed, zero-runtime-dependency TypeScript SDK for the [WhatsApp Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api) — the Meta-hosted WhatsApp Business Platform. Built on the native `fetch` in Node.js 20+.
-
-- **Zero runtime dependencies** — just the platform `fetch`/`AbortController`.
-- **Fully typed** — every method, option, and payload ships with `.d.ts` declarations.
-- **Dual package** — native ESM and CommonJS builds.
-- **Fail-fast validation** — documented API limits are checked client-side before a request is sent; nothing is silently truncated.
-- **Typed error hierarchy** — rate limits, re-engagement, auth, and validation errors are distinct classes.
-- **Signed provenance** — every release is published from CI with [npm provenance](https://docs.npmjs.com/generating-provenance-statements).
-
-> **Status: stable (`1.x`).** Outbound messaging, inbound webhooks, the media lifecycle, phone-number/WABA management, and message-template management are all implemented. The public API is stable and follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html): breaking changes ship only in a new major version.
-
-## Why this library
-
-`@solvejet/whatsapp-cloud-api` is a complete, production-ready Node.js and TypeScript client for Meta's WhatsApp Cloud API. Use it to send WhatsApp messages, media, and templates, receive and verify incoming webhooks, and manage phone numbers, WhatsApp Business Accounts (WABA), and message templates — all from a single typed client.
-
-It is a good fit when you want:
-
-- A **zero-dependency** client (no `axios`, no `node-fetch`) that runs on the Node.js 20+ built-in `fetch`, keeping your dependency tree and install size small.
-- **End-to-end TypeScript types** so your editor autocompletes every message type, option, and response.
-- **Correctness by default** — documented WhatsApp API limits are validated before the request, and failures surface as specific, catchable error classes.
-- A **secure supply chain** — releases are published from CI with signed npm provenance.
-
-## What you can do
-
-| Capability                | API                                                                                              |
-| ------------------------- | ------------------------------------------------------------------------------------------------ |
-| Send text & media         | `client.messages.sendText`, `sendImage`, `sendVideo`, `sendAudio`, `sendDocument`, `sendSticker` |
-| Send templates            | `client.messages.sendTemplate`                                                                   |
-| Interactive messages      | `sendInteractiveButtons`, `sendInteractiveList`, `sendInteractiveCtaUrl`, `sendInteractiveFlow`  |
-| Location & contacts       | `client.messages.sendLocation`, `sendContacts`                                                   |
-| Reactions & typing        | `client.messages.sendReaction`, `markAsRead`, `sendTypingIndicator`                              |
-| Upload & download media   | `client.media.upload`, `getUrl`, `download`, `delete`                                            |
-| Receive & verify webhooks | `verifyWebhook`, `verifySignature`, `parseWebhook`, `extractMessages`, `WebhookHandler`          |
-| Manage phone numbers      | `client.phoneNumbers` (register, verify, business profile, two-step PIN)                         |
-| Manage WABAs              | `client.waba` (list numbers, subscribe webhooks)                                                 |
-| Manage templates          | `client.templates` (list, get, create, edit, delete)                                             |
-| Manage flows              | `client.flows` (create, publish, update JSON, list, get, deprecate, delete, assets, preview)     |
-| Block & unblock users     | `client.blocks` (block, unblock, list)                                                           |
-| Calling settings & calls  | `client.calls` (getSettings, updateSettings, initiate, preAccept, accept, reject, terminate)     |
-
-## Contents
-
-- [Install](#install)
-- [Quick start](#quick-start)
-- [Configuration](#configuration)
-- [Feature overview](#feature-overview)
-- [Messaging](#messaging)
-  - [Replying to a message](#replying-to-a-message)
-  - [Interactive call-to-action URL](#interactive-call-to-action-url)
-  - [Address message (India and Singapore)](#address-message-india-and-singapore)
-  - [Typing indicator](#typing-indicator)
-- [Media](#media)
-- [Phone number & WABA management](#phone-number--waba-management)
-- [Template management](#template-management)
-- [Flows management](#flows-management)
-- [Block API](#block-api)
-- [Calling](#calling)
-- [Error handling](#error-handling)
-- [Webhooks](#webhooks)
-- [FAQ](#faq)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [Security](#security)
-- [License](#license)
-
-## Install
-
 ```sh
-pnpm add @solvejet/whatsapp-cloud-api
+npm install @solvejet/whatsapp-cloud-api
 ```
-
-Requires Node.js 20 or newer. Every release is published from CI with signed
-[npm provenance](https://docs.npmjs.com/generating-provenance-statements); run
-`npm audit signatures` after installing to verify the package traces back to its
-source build.
-
-## Quick start
 
 ```ts
 import { WhatsAppClient } from '@solvejet/whatsapp-cloud-api';
@@ -90,10 +22,78 @@ const client = new WhatsAppClient({
   phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID!,
 });
 
-// Send a plain text message.
 const res = await client.messages.sendText('15551234567', 'Hello from the SDK');
 console.log(res.messages[0]?.id); // the WhatsApp message ID (WAMID)
 ```
+
+Runnable webhook servers for Express, Next.js, Hono and Fastify are in [`examples/`](./examples/README.md). Requires Node.js 20 or newer. Run `npm audit signatures` after installing to check the package against its source build.
+
+> **Not affiliated with Meta.** This is an independent, open-source client for Meta's WhatsApp Cloud API. It is not endorsed by Meta or WhatsApp.
+
+## Why this library
+
+- **Zero runtime dependencies.** It uses the platform `fetch` and `AbortController`, so there is no `axios` or `node-fetch` in your tree.
+- **Fully typed.** Every method, option, payload and webhook event ships with `.d.ts` declarations, for both ESM and CommonJS.
+- **Fail-fast validation.** Documented API limits (body and footer lengths, button counts, list rows, reaction emoji and more) are checked before the request is sent. Nothing is silently truncated.
+- **Typed errors.** Rate limits, re-engagement, authentication, validation and webhook failures are distinct classes. Requests retry `429`, `5xx` and network errors with backoff.
+- **Business-scoped user IDs.** Webhook types expose BSUID and username fields, and senders accept a `{ bsuid }` recipient. See [Usernames and BSUIDs](#usernames-and-bsuids).
+- **Released from CI** with npm provenance through OIDC trusted publishing.
+
+| Capability                | API                                                                                                           |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Send text & media         | `client.messages.sendText`, `sendImage`, `sendVideo`, `sendAudio`, `sendDocument`, `sendSticker`              |
+| Send templates            | `client.messages.sendTemplate`                                                                                |
+| Interactive messages      | `sendInteractiveButtons`, `sendInteractiveList`, `sendInteractiveCtaUrl`, `sendInteractiveFlow`               |
+| Location, contacts, more  | `sendLocation`, `sendContacts`, `sendLocationRequest`, `sendProduct`, `sendProductList`, `sendAddressMessage` |
+| Reactions & typing        | `sendReaction`, `markAsRead`, `sendTypingIndicator`                                                           |
+| Any other message body    | `client.messages.sendRaw`                                                                                     |
+| Upload & download media   | `client.media.upload`, `getUrl`, `download`, `delete`                                                         |
+| Receive & verify webhooks | `verifyWebhook`, `verifySignature`, `parseWebhook`, `extractMessages`, `WebhookHandler`                       |
+| Manage phone numbers      | `client.phoneNumbers` (register, verify, business profile, two-step PIN)                                      |
+| Manage WABAs              | `client.waba` (list numbers, subscribe webhooks)                                                              |
+| Manage templates          | `client.templates` (list, get, create, edit, delete)                                                          |
+| Manage flows              | `client.flows` (create, publish, update JSON, list, get, deprecate, delete, assets, preview)                  |
+| Block & unblock users     | `client.blocks` (block, unblock, list)                                                                        |
+| Calling settings & calls  | `client.calls` (getSettings, updateSettings, initiate, preAccept, accept, reject, terminate)                  |
+
+## How it compares
+
+Facts below were checked against the npm registry and GitHub on 2026-11-21. Check each project yourself before choosing; they change.
+
+| Option                                                                                      | What it is                                   | Status when checked                                                    | Runtime dependencies                    |
+| ------------------------------------------------------------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------- |
+| This package                                                                                | Cloud API SDK for TypeScript                 | Actively released                                                      | None                                    |
+| [`whatsapp`](https://www.npmjs.com/package/whatsapp) (Meta's Node.js SDK)                   | Cloud API SDK                                | GitHub repository archived; last npm release `0.0.5-Alpha`, 2023-04-11 | `@types/node`                           |
+| [`whatsapp-cloud-api`](https://www.npmjs.com/package/whatsapp-cloud-api)                    | Cloud API wrapper                            | GitHub repository archived; last npm release `0.3.1`, 2023-04-11       | `axios`, `express`, `dotenv` and others |
+| [`whatsapp-api-js`](https://www.npmjs.com/package/whatsapp-api-js)                          | Cloud API library                            | Last npm release `6.3.0`, 2026-09-21                                   | None                                    |
+| [`@great-detail/whatsapp`](https://www.npmjs.com/package/@great-detail/whatsapp)            | Cloud API SDK                                | Last npm release `9.2.0`, 2026-09-22                                   | `ky`, `openapi-fetch`                   |
+| [`@kapso/whatsapp-cloud-api`](https://www.npmjs.com/package/@kapso/whatsapp-cloud-api)      | Cloud API SDK                                | Last npm release `0.4.0`, 2026-10-23                                   | `zod`                                   |
+| [Baileys](https://github.com/WhiskeySockets/Baileys), [whatsapp-web.js](https://wwebjs.dev) | Unofficial clients that emulate WhatsApp Web | Not the Cloud API                                                      | See each project                        |
+
+Baileys and whatsapp-web.js drive a regular WhatsApp account through the WhatsApp Web protocol or browser automation, not through Meta's business API. WhatsApp's [terms of service](https://www.whatsapp.com/legal/terms-of-service) restrict automated or unauthorized access to its services, so check them before using these projects for a business integration. The Cloud API, through this package or one of the other SDKs above, is the supported route for business messaging.
+
+Pick this package when you want no runtime dependencies, strict TypeScript types and a small, testable surface. Pick another if it covers something you need that this one does not, for example a hosted platform or generated OpenAPI clients.
+
+## Install
+
+```sh
+pnpm add @solvejet/whatsapp-cloud-api
+# or: npm install @solvejet/whatsapp-cloud-api
+# or: yarn add @solvejet/whatsapp-cloud-api
+```
+
+## Runtime support
+
+| Runtime            | Status                                                    |
+| ------------------ | --------------------------------------------------------- |
+| Node.js 20         | Verified in CI (built package is imported as ESM and CJS) |
+| Node.js 22, 24     | Verified in CI (lint, typecheck, tests, build)            |
+| Bun, Deno          | Untested                                                  |
+| Cloudflare Workers | Untested                                                  |
+
+The HTTP client only needs `fetch` and `AbortController`. The webhook helpers import `node:crypto`, so they need a runtime that provides it.
+
+**Verified against:** Graph API `v26.0`, Meta changelog checked 2026-11-21. Change it with the `apiVersion` option.
 
 ## Configuration
 
@@ -105,7 +105,7 @@ required; everything else has a sensible default.
 | `accessToken`       | `string` | — (required)                 | Permanent or temporary access token used to authenticate requests.               |
 | `phoneNumberId`     | `string` | —                            | Default sender phone number ID for messaging and media calls.                    |
 | `businessAccountId` | `string` | —                            | WhatsApp Business Account (WABA) ID. Default id for `client.waba` methods.       |
-| `apiVersion`        | `string` | `v23.0`                      | Graph API version to target.                                                     |
+| `apiVersion`        | `string` | `v26.0`                      | Graph API version to target.                                                     |
 | `baseUrl`           | `string` | `https://graph.facebook.com` | Base URL for the Graph API (override for a proxy or a mock).                     |
 | `timeoutMs`         | `number` | `30000`                      | Per-attempt request timeout in milliseconds.                                     |
 | `maxRetries`        | `number` | `2`                          | Max retries on `429`/`5xx`/network errors (total attempts = `maxRetries` + `1`). |
@@ -118,14 +118,14 @@ const client = new WhatsAppClient({
   accessToken: process.env.WHATSAPP_ACCESS_TOKEN!,
   phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID!,
   businessAccountId: process.env.WHATSAPP_WABA_ID,
-  apiVersion: 'v23.0',
+  apiVersion: 'v26.0',
   timeoutMs: 15_000,
   maxRetries: 3,
 });
 
 client.getPhoneNumberId(); // the configured default sender, if any
-client.getApiVersion(); // 'v23.0'
-client.getBaseUrl(); // 'https://graph.facebook.com/v23.0'
+client.getApiVersion(); // 'v26.0'
+client.getBaseUrl(); // 'https://graph.facebook.com/v26.0'
 ```
 
 **Per-call phone number override.** Every message and media method accepts an
@@ -136,24 +136,6 @@ neither is set, the call throws `WhatsAppValidationError`.
 The HTTP core retries idempotent failures (`429`, `5xx`, and network/timeout
 errors) with jittered exponential backoff, honoring a `Retry-After` header when
 present.
-
-## Feature overview
-
-- **Text and media:** `sendText`, `sendImage`, `sendVideo`, `sendAudio`, `sendDocument`, `sendSticker` (media is referenced by an uploaded `id` or a public `link`).
-- **Location and contacts:** `sendLocation`, `sendContacts` with the full contact object (structured name parts, `addresses`, `org`, `urls`, `birthday`).
-- **Templates:** `sendTemplate` (sends an approved template) plus full template management via `client.templates` (create, list, get, edit, delete).
-- **Interactive:** `sendInteractiveButtons`, `sendInteractiveList` (with text/image/video/document headers), `sendInteractiveCtaUrl`, `sendInteractiveFlow`, `sendLocationRequest`, `sendProduct`, `sendProductList`, `sendAddressMessage` (India and Singapore).
-- **Other:** `sendReaction`, `markAsRead`, `sendTypingIndicator`.
-- **Media lifecycle:** `client.media.upload`, `getUrl`, `download`/`downloadByUrl`, and `delete`.
-- **Phone number & WABA management:** `client.phoneNumbers.*` (verification, Cloud API registration, two-step PIN, business profile) and `client.waba.*` (account details, list phone numbers, subscribed-app management).
-- **Template management:** `client.templates.*` (`create`, `list`, `get`, `edit`, `delete` message templates, with client-side validation of the documented create limits).
-- **Flows management:** `client.flows.*` (`create`, `list`, `get`, `update`, `updateJson`, `publish`, `deprecate`, `delete`, `listAssets`, `getPreview`) for WhatsApp Flows — WABA-scoped, with multipart `FLOW_JSON` upload and client-side validation (only `DRAFT` flows are deletable).
-- **Block API:** `client.blocks.*` (`block`, `unblock`, `list`) to block or unblock the users who messaged your business — phone-number-scoped, up to 1000 users per call, with per-user failures reported in the response.
-- **Calling:** `client.calls.*` (`getSettings`, `updateSettings`, `initiate`, `preAccept`, `accept`, `reject`, `terminate`) wrapping the WhatsApp Business Calling REST signaling + settings. The SDP/WebRTC media plane is the caller's responsibility (see [Calling](#calling)).
-- **Reply/context:** pass `{ replyToMessageId }` to any sender to reply to a prior message.
-- **Webhooks:** `verifyWebhook`/`verifyWebhookQuery` (GET handshake), `verifySignature` (constant-time `X-Hub-Signature-256`), `parseWebhook`/`extractMessages`/`extractStatuses` with a typed `IncomingMessage` union and `MessageStatus`, and a framework-agnostic `WebhookHandler`.
-- **Client-side validation:** body/footer/header lengths, button counts and ids, list section/row limits, reaction emoji, flow CTA, product-list item counts, and address-message country/postal-code — all checked before the request.
-- **Typed errors:** `WhatsAppApiError`, `WhatsAppAuthenticationError`, `WhatsAppRateLimitError`, `WhatsAppReEngagementError`, `WhatsAppRequestError`, `WhatsAppValidationError`, and `WhatsAppWebhookError`, plus the `WhatsAppErrorCode` constants map for comparing `err.code` to named Graph error codes.
 
 ## Messaging
 
@@ -220,6 +202,39 @@ once you send a message or after about 25 seconds.
 
 ```ts
 await client.messages.sendTypingIndicator('wamid.HBgL...');
+```
+
+## Usernames and BSUIDs
+
+Users who enable WhatsApp usernames may not share a phone number. Meta then identifies them by a business-scoped user ID (BSUID, for example `US.13491208655302741918`) and may omit `wa_id`, `from` or `recipient_id`. `wa_id`, `from` and `recipient_id` are typed as `string` for backward compatibility but may be absent in webhooks for username-based users, so do not assume they are always present; check them at runtime.
+
+Webhook types expose these optional fields:
+
+| Where              | Fields                                                                            |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `value.contacts[]` | `user_id`, `parent_user_id`, `profile.username`                                   |
+| Incoming messages  | `from_user_id`, `from_parent_user_id`, `group_id`                                 |
+| Statuses           | `recipient_user_id`, `recipient_parent_user_id`                                   |
+| `system` messages  | `system.user_id`, `parent_user_id`, `previous_user_id`, `previous_parent_user_id` |
+
+To send to a BSUID, pass `{ bsuid }` instead of a phone number to any sender. The SDK sends it as `recipient` and omits `to`.
+
+```ts
+await client.messages.sendText({ bsuid: 'US.13491208655302741918' }, 'Hello');
+```
+
+Details are in [Meta's business-scoped user ID documentation](https://developers.facebook.com/documentation/business-messaging/whatsapp/business-scoped-user-ids). When a send goes to a BSUID, `contacts[].wa_id` in the response can be absent; read `contacts[].user_id`.
+
+## Raw sends
+
+`client.messages.sendRaw(body, options?)` posts any body to `{phoneNumberId}/messages` and adds `messaging_product: 'whatsapp'` if you leave it out. Use it for message shapes Meta has released before this SDK has a typed sender. The body is not validated client-side. Retries, timeouts and errors work as for the other senders, and you can declare the response type.
+
+```ts
+const result = await client.messages.sendRaw<{ messages: { id: string }[] }>({
+  to: '15551234567',
+  type: 'text',
+  text: { body: 'Hello' },
+});
 ```
 
 ## Media
@@ -295,309 +310,131 @@ management (`setTwoStepPin` — there is no API to disable it), profile updates
 (`client.waba.subscribeApp`/`unsubscribeApp`/`listSubscribedApps`) are all
 available. Phone-number deletion is intentionally out of scope.
 
-## Template management
-
-Create, list, read, edit, and delete message templates with `client.templates`.
-Every method accepts an optional trailing `businessAccountId` (the id-scoped
-`get`/`edit` take a required template id instead), falling back to the
-configured `businessAccountId`; when neither is set the call throws
-`WhatsAppValidationError`. `create` validates the documented hard limits
-client-side before sending.
-
-```ts
-// Create a template. Exactly one BODY component is required.
-const created = await client.templates.create({
-  name: 'order_confirmation',
-  language: 'en_US',
-  category: 'UTILITY',
-  components: [
-    {
-      type: 'BODY',
-      text: 'Hi {{1}}, your order {{2}} is confirmed.',
-      example: { body_text: [['Sam', '12345']] },
-    },
-    { type: 'FOOTER', text: 'Reply STOP to opt out.' },
-  ],
-});
-console.log(created.id, created.status); // e.g. "123..." "PENDING"
-
-// List templates on the business account (filters and paging are optional).
-const { data } = await client.templates.list({ status: 'APPROVED', limit: 20 });
-console.log(data.map((t) => t.name));
-
-// Delete every version of a template by name.
-await client.templates.delete({ name: 'order_confirmation' });
-```
-
-Editing an approved template resets it to `PENDING` for re-review, and a
-template's `name` and `language` are immutable.
-
-## Flows management
-
-Build and manage [WhatsApp Flows](https://developers.facebook.com/docs/whatsapp/flows)
-with `client.flows`. The methods are WABA-scoped: each accepts an optional
-trailing `businessAccountId` and falls back to the configured
-`businessAccountId`; when neither is set the call throws
-`WhatsAppValidationError`. `create` validates a non-empty `name` and a non-empty
-`categories` array client-side before sending.
-
-```ts
-// Create a draft flow, then upload its Flow JSON and publish it.
-const flow = await client.flows.create({
-  name: 'lead_capture',
-  categories: ['LEAD_GENERATION'],
-});
-
-// Upload the Flow JSON as a FLOW_JSON asset (string, Uint8Array, or Blob).
-await client.flows.updateJson(flow.id, JSON.stringify(flowJson), { name: 'flow.json' });
-
-// Publish once the JSON validates. Only DRAFT flows can be deleted.
-await client.flows.publish(flow.id);
-
-// List flows, read one, and fetch a short-lived preview URL.
-const { data } = await client.flows.list({ fields: ['id', 'name', 'status'] });
-const detail = await client.flows.get(flow.id);
-const preview = await client.flows.getPreview(flow.id, { invalidate: true });
-console.log(preview.preview?.preview_url);
-```
-
-Update a flow's metadata with `update` (at least one editable field is
-required), inspect its uploaded assets with `listAssets`, retire it with
-`deprecate`, and remove a draft with `delete`.
-
-## Block API
-
-Block and unblock the WhatsApp users who have messaged your business with
-`client.blocks`. The methods are phone-number-scoped: each accepts an optional
-trailing `phoneNumberId` and falls back to the configured `phoneNumberId`; when
-neither is set the call throws `WhatsAppValidationError`. You can block or
-unblock up to **1000 users per call** — an empty or over-limit list throws
-`WhatsAppValidationError` before any request is sent.
-
-```ts
-// Block one or more users by WhatsApp phone number.
-const res = await client.blocks.block(['15551234567']);
-console.log(res.block_users.added_users?.map((u) => u.wa_id));
-
-// Per-user failures are reported even when the overall call succeeds.
-for (const failure of res.block_users.failed_users ?? []) {
-  console.error(`could not block ${failure.input}:`, failure.errors[0]?.message);
-}
-
-// Unblock users (issued as a DELETE with a JSON body) and list blocked users.
-await client.blocks.unblock(['15551234567']);
-const { data } = await client.blocks.list({ limit: 100 });
-console.log(data.map((u) => u.wa_id));
-```
-
-Only users who messaged your business in the **last 24 hours** can be blocked.
-
-## Calling
-
-Manage the [WhatsApp Business Calling](https://developers.facebook.com/docs/whatsapp/cloud-api/calling)
-settings and call lifecycle with `client.calls`. The methods are
-phone-number-scoped: each accepts an optional trailing `phoneNumberId` and falls
-back to the configured `phoneNumberId`; when neither is set the call throws
-`WhatsAppValidationError`.
-
-> **Scope: this SDK handles the REST signaling + settings only.** The WhatsApp
-> Business Calling API also has a real-time **media plane** — the SDP
-> offer/answer exchange carried over **WebRTC (and SIP)**. Running that media
-> stack is **the caller's responsibility**: this SDK does not open, negotiate,
-> or terminate media sessions. It passes SDP strings through as **opaque
-> values** (never parsed or validated), so you produce and consume them with
-> your own WebRTC/SIP implementation.
-
-```ts
-// Enable calling for the phone number and read the current settings.
-await client.calls.updateSettings({ calling: { status: 'ENABLED' } });
-const settings = await client.calls.getSettings();
-console.log(settings.calling?.status);
-
-// Call lifecycle. `sdp` is an opaque { sdpType, sdp } pair you produce/consume
-// with your own WebRTC/SIP stack — the SDK only relays it.
-const call = await client.calls.initiate({
-  to: '15551234567',
-  sdp: { sdpType: 'offer', sdp: localOfferSdp },
-});
-const callId = call.calls[0]?.id;
-
-await client.calls.accept(callId, { sdpType: 'answer', sdp: localAnswerSdp });
-await client.calls.terminate(callId);
-```
-
-Reject an inbound call with `reject(callId)` and send an early media answer with
-`preAccept(callId, sdp)` before accepting.
-
-## Error handling
-
-Every API failure is a subclass of `WhatsAppApiError`, so `.code` (the Graph
-error code), `.httpStatus`, and related fields are always available. Branch on
-the specific classes to react:
-
-```ts
-import {
-  WhatsAppRateLimitError,
-  WhatsAppReEngagementError,
-  WhatsAppValidationError,
-} from '@solvejet/whatsapp-cloud-api';
-
-try {
-  await client.messages.sendText('15551234567', 'Hello from the SDK');
-} catch (err) {
-  if (err instanceof WhatsAppRateLimitError) {
-    // Rate limited: back off before retrying. When the response carried a
-    // Retry-After header, `retryAfterMs` holds the server-advised delay.
-    const waitMs = err.retryAfterMs ?? 60_000;
-    await new Promise((resolve) => setTimeout(resolve, waitMs));
-  } else if (err instanceof WhatsAppReEngagementError) {
-    // Equivalent check: `err.code === WhatsAppErrorCode.RE_ENGAGEMENT_MESSAGE`.
-    // Outside the 24-hour customer service window: fall back to a template.
-    await client.messages.sendTemplate('15551234567', {
-      name: 'hello_world',
-      language: { code: 'en_US' },
-    });
-  } else if (err instanceof WhatsAppValidationError) {
-    // Client-side limit or shape violation: fix the request before resending.
-    console.error('Invalid request:', err.message);
-  } else {
-    throw err;
-  }
-}
-```
-
-**Error class mapping.** `errorFromResponse` picks the error class from the HTTP
-status and Graph error `code`:
-
-- `429`, `130429`, `131056`, `133016` → `WhatsAppRateLimitError`
-- `131047` → `WhatsAppReEngagementError`
-- `401`, `403`, `0`, `190` → `WhatsAppAuthenticationError`
-- everything else → `WhatsAppApiError` (with `.code` set)
-
-All of the above extend `WhatsAppApiError`. Network, abort, and timeout failures
-raise `WhatsAppRequestError` (with an `isTimeout` flag). `WhatsAppValidationError`
-is raised locally before a request is sent and is not part of this mapping.
-
-For readable comparisons against `err.code`, the exported `WhatsAppErrorCode`
-constants map names the common Graph error codes (e.g.
-`WhatsAppErrorCode.ACCESS_TOKEN_EXPIRED`, `WhatsAppErrorCode.SPAM_RATE_LIMIT_HIT`,
-`WhatsAppErrorCode.TEMPLATE_NOT_EXIST`), so you can branch on a named constant
-instead of a magic number. Its value type is `WhatsAppErrorCodeValue`.
-
 ## Webhooks
 
 Receiving inbound messages and delivery statuses is a two-step model:
 
-1. **GET verification.** When you configure the webhook, Meta sends a GET request with `hub.mode`, `hub.verify_token`, and `hub.challenge`. Echo the raw `hub.challenge` back with a `200` when the token matches your configured verify token; otherwise return `403`. The challenge must be returned as the raw response body, not wrapped in JSON.
-2. **POST deliveries.** Meta POSTs event payloads signed with `X-Hub-Signature-256`. Verify the signature against the **raw request body** using your App Secret, return `200` immediately, then parse and process.
+1. **GET verification.** When you configure the webhook, Meta sends a GET request with `hub.mode`, `hub.verify_token`, and `hub.challenge`. Echo the raw `hub.challenge` back with a `200` when the token matches your verify token; otherwise return `403`. The challenge must be the raw response body, not JSON.
+2. **POST deliveries.** Meta POSTs event payloads signed with `X-Hub-Signature-256`. Verify the signature against the **raw request body** using your App Secret, return `200` quickly, then process.
 
-Three distinct secrets are involved, and they are not interchangeable:
+Three secrets are involved, and they are not interchangeable:
 
-- **Verify token** — a string you define yourself, used only for the GET handshake.
-- **App Secret** — from your Meta app settings, used to compute/verify the `X-Hub-Signature-256` signature.
-- **Access token** — used to _send_ messages (see above), never for webhooks.
+- **Verify token:** a string you define, used only for the GET handshake.
+- **App Secret:** from your Meta app settings, used to verify `X-Hub-Signature-256`.
+- **Access token:** used to _send_ messages, never for webhooks.
 
-### Framework-agnostic Express example
+`WebhookHandler` binds the secrets once. `handler.handleVerification(query)` answers the handshake, and `handler.parse(rawBody, signature)` verifies the signature and parses the payload, throwing `WhatsAppWebhookError` when the signature is missing or invalid.
+
+### Webhooks: raw body
+
+The signature is computed over the exact bytes Meta sent. If your framework parses the JSON first and you re-serialize it, the bytes change and a valid signature fails. Read the body as raw text or a `Buffer`.
+
+Express:
 
 ```ts
 import express from 'express';
-import {
-  verifyWebhook,
-  verifySignature,
-  parseWebhook,
-  extractMessages,
-  extractStatuses,
-} from '@solvejet/whatsapp-cloud-api';
+import { WebhookHandler, WhatsAppWebhookError } from '@solvejet/whatsapp-cloud-api';
 
+const handler = new WebhookHandler({
+  appSecret: process.env.WHATSAPP_APP_SECRET!,
+  verifyToken: process.env.WHATSAPP_VERIFY_TOKEN!,
+});
 const app = express();
 
-const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN!; // you define this
-const APP_SECRET = process.env.WHATSAPP_APP_SECRET!; // from Meta app settings
-
-// 1. GET verification handshake — echo the raw challenge.
 app.get('/webhook', (req, res) => {
-  const { statusCode, body } = verifyWebhook(
-    {
-      mode: req.query['hub.mode'] as string | undefined,
-      token: req.query['hub.verify_token'] as string | undefined,
-      challenge: req.query['hub.challenge'] as string | undefined,
-    },
-    VERIFY_TOKEN,
-  );
-  // Send the raw challenge string, NOT res.json(...).
-  res.status(statusCode).send(body);
+  const query: Record<string, string | undefined> = {};
+  for (const [key, value] of Object.entries(req.query)) {
+    if (typeof value === 'string') query[key] = value;
+  }
+  const { statusCode, body } = handler.handleVerification(query);
+  res.status(statusCode).type('text/plain').send(body);
 });
 
-// 2. POST deliveries — capture the RAW body so the signature matches.
+// express.raw keeps the body as a Buffer. Do not put express.json() before this route.
 app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
-  const rawBody = req.body as Buffer; // raw bytes, exactly as received
-  const signature = req.get('x-hub-signature-256');
-
-  if (!verifySignature(rawBody, signature, APP_SECRET)) {
-    res.sendStatus(401);
-    return;
-  }
-
-  // Acknowledge fast, then process asynchronously (see gotchas below).
-  res.sendStatus(200);
-
-  const payload = parseWebhook(rawBody.toString('utf8'));
-
-  for (const message of extractMessages(payload)) {
-    // Deduplicate on message.id (the wamid) to stay idempotent across retries.
-    switch (message.type) {
-      case 'text':
-        console.log(`text from ${message.from}: ${message.text.body}`);
-        break;
-      case 'image':
-        console.log(`image ${message.image.id} from ${message.from}`);
-        break;
-      case 'interactive':
-        if (message.interactive.type === 'button_reply') {
-          console.log(`button ${message.interactive.button_reply?.id}`);
-        } else if (message.interactive.type === 'list_reply') {
-          console.log(`list ${message.interactive.list_reply?.id}`);
-        } else if (message.interactive.type === 'nfm_reply') {
-          // e.g. an address-message submission; response_json is a raw string.
-          const fields = JSON.parse(message.interactive.nfm_reply?.response_json ?? '{}');
-          console.log(`nfm_reply ${message.interactive.nfm_reply?.name}`, fields);
-        }
-        break;
-      default:
-        // New/unrecognized Meta message types still parse and land here.
-        console.log(`unhandled message type: ${message.type}`);
-    }
-  }
-
-  for (const status of extractStatuses(payload)) {
-    console.log(`message ${status.id} -> ${status.status}`);
+  try {
+    const { messages, statuses } = handler.parse(
+      req.body as Buffer,
+      req.get('x-hub-signature-256'),
+    );
+    res.sendStatus(200);
+    // handle messages and statuses here
+  } catch (error) {
+    if (error instanceof WhatsAppWebhookError) return void res.sendStatus(401);
+    throw error;
   }
 });
 ```
 
-Prefer `WebhookHandler` when you want the secrets bound once: `const handler = new WebhookHandler({ appSecret, verifyToken })` gives you `handler.handleVerification(query)` and `handler.parse(rawBody, signature)` (which verifies the signature and throws `WhatsAppWebhookError` when an App Secret is configured and the signature is missing or invalid).
-
-**Two gotchas worth repeating:**
-
-- **The signature is computed over the RAW bytes.** Verify `verifySignature` against the exact bytes Meta sent (`express.raw(...)` above). Re-serializing parsed JSON changes the bytes and makes a valid signature fail — never run `JSON.stringify(req.body)` and verify that.
-- **Return `200` fast, then process.** Meta retries deliveries and will deactivate endpoints that respond slowly. Acknowledge immediately and do the real work asynchronously. Because of retries, deduplicate on the message id (`wamid`, `message.id`) to keep processing idempotent.
-
-## FAQ
-
-### How do I send a WhatsApp message with Node.js or TypeScript?
-
-Install `@solvejet/whatsapp-cloud-api`, create a `WhatsAppClient` with your access token and phone number ID, and call `client.messages.sendText(to, body)`:
+Next.js App Router (`app/api/webhook/route.ts`):
 
 ```ts
-import { WhatsAppClient } from '@solvejet/whatsapp-cloud-api';
+import { WebhookHandler, WhatsAppWebhookError } from '@solvejet/whatsapp-cloud-api';
 
-const client = new WhatsAppClient({
-  accessToken: process.env.WHATSAPP_ACCESS_TOKEN!,
-  phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID!,
+const handler = new WebhookHandler({
+  appSecret: process.env.WHATSAPP_APP_SECRET!,
+  verifyToken: process.env.WHATSAPP_VERIFY_TOKEN!,
 });
 
-await client.messages.sendText('15551234567', 'Hello from the SDK');
+export async function GET(request: Request) {
+  const query: Record<string, string | undefined> = {};
+  for (const [key, value] of new URL(request.url).searchParams) query[key] = value;
+  const { statusCode, body } = handler.handleVerification(query);
+  return new Response(body, { status: statusCode });
+}
+
+export async function POST(request: Request) {
+  const rawBody = await request.text(); // not request.json()
+  try {
+    const { messages } = handler.parse(rawBody, request.headers.get('x-hub-signature-256') ?? '');
+    // await your handling here: serverless functions can stop after the response
+    return new Response('OK');
+  } catch (error) {
+    if (error instanceof WhatsAppWebhookError) return new Response('Unauthorized', { status: 401 });
+    throw error;
+  }
+}
 ```
+
+Hono and Fastify versions are in [`examples/`](./examples/README.md).
+
+### Handling events
+
+`extractMessages` and `extractStatuses` flatten a payload. Message types the SDK does not model still parse; handle them in the `default` branch.
+
+```ts
+import { extractMessages, extractStatuses, parseWebhook } from '@solvejet/whatsapp-cloud-api';
+
+const payload = parseWebhook(rawBody); // after verifying the signature
+for (const message of extractMessages(payload)) {
+  switch (message.type) {
+    case 'text':
+      console.log(`text from ${message.from_user_id ?? message.from}: ${message.text.body}`);
+      break;
+    case 'interactive':
+      console.log(message.interactive.button_reply?.id ?? message.interactive.list_reply?.id);
+      break;
+    default:
+      console.log(`unhandled message type: ${message.type}`);
+  }
+}
+for (const status of extractStatuses(payload)) {
+  console.log(`message ${status.id} -> ${status.status}`);
+}
+```
+
+Return `200` fast and do the work afterwards. Meta retries deliveries, so deduplicate on the message id (`wamid`).
+
+## More documentation
+
+- [Template management](./docs/templates.md)
+- [Flows management](./docs/flows.md)
+- [Block API](./docs/blocks.md)
+- [Calling](./docs/calling.md)
+- [Error handling](./docs/errors.md)
+- [Examples](./examples/README.md)
+
+## FAQ
 
 ### How do I send a WhatsApp template message?
 
@@ -610,40 +447,31 @@ await client.messages.sendTemplate('15551234567', {
 });
 ```
 
-To create, list, edit, or delete templates programmatically, use `client.templates` (see [Template management](#template-management)).
-
-### How do I verify and parse WhatsApp webhooks?
-
-Verify the `X-Hub-Signature-256` header against the **raw** request body with your App Secret, then parse the payload. The SDK provides `verifySignature`, `parseWebhook`, `extractMessages`, and `extractStatuses`, plus a `WebhookHandler` that binds the secrets once. See [Webhooks](#webhooks) for a full Express example.
+To create, list, edit, or delete templates, see [Template management](./docs/templates.md).
 
 ### Does this SDK have any dependencies?
 
-No. It has **zero runtime dependencies** and uses the native `fetch` and `AbortController` built into Node.js 20+, so it does not pull in `axios`, `node-fetch`, or any other HTTP library.
+No runtime dependencies. It uses the `fetch` and `AbortController` built into Node.js 20+.
 
 ### Which Node.js versions are supported?
 
-Node.js **20 or newer**. The package ships both ESM and CommonJS builds, so it works with `import` and `require`.
+Node.js 20 or newer, as `engines.node` states. CI imports the built ESM and CommonJS entry points on Node 20 and runs the full checks on Node 22 and 24. See [Runtime support](#runtime-support).
 
 ### Do I need a Meta WhatsApp Business account?
 
-Yes. You need a Meta WhatsApp Business Platform setup: a WhatsApp Business Account (WABA), a business phone number ID, and an access token. The SDK talks to the Meta Graph API (Cloud API) on your behalf; it is not an unofficial or reverse-engineered client.
-
-### Is it an official WhatsApp SDK?
-
-No. This is an independent, open-source TypeScript client for Meta's official WhatsApp Cloud API. It is not affiliated with or endorsed by Meta or WhatsApp.
+Yes. You need a WhatsApp Business Account (WABA), a business phone number ID and an access token. The SDK calls Meta's Graph API on your behalf.
 
 ### How do I handle rate limits and errors?
 
-Every API failure is a typed subclass of `WhatsAppApiError` — for example `WhatsAppRateLimitError` (with `retryAfterMs`) and `WhatsAppReEngagementError`. The HTTP core also retries `429`/`5xx`/network errors automatically with backoff. See [Error handling](#error-handling).
+Every API failure is a typed subclass of `WhatsAppApiError`, for example `WhatsAppRateLimitError` (with `retryAfterMs`) and `WhatsAppReEngagementError`. See [Error handling](./docs/errors.md).
 
 ## Roadmap
 
-- **Calling media plane (WebRTC/SIP).** Optional helpers for the real-time media layer of the Calling API — negotiating and managing the SDP/WebRTC (and SIP) media sessions that today are the caller's responsibility (see [Calling](#calling)). The REST signaling and settings are already implemented in `client.calls`.
-- Python and Rust ports of the SDK, following the TypeScript release.
+- **Calling media plane (WebRTC/SIP).** Optional helpers for the real-time media layer of the Calling API, which is currently the caller's responsibility (see [Calling](./docs/calling.md)). The REST signaling and settings are implemented in `client.calls`.
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the development setup, release process, and workflow, and please follow the [Code of Conduct](./CODE_OF_CONDUCT.md).
+Contributions are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the development setup and release process, and please follow the [Code of Conduct](./CODE_OF_CONDUCT.md).
 
 ## Security
 

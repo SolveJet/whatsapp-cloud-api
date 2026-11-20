@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { WhatsAppClient, WhatsAppValidationError } from '../src/index.js';
+import { WhatsAppApiError, WhatsAppClient, WhatsAppValidationError } from '../src/index.js';
 import type { SendMessageResponse } from '../src/index.js';
 import { getFirstMessageId } from '../src/resources/messages.js';
 
-const BASE_URL = 'https://graph.facebook.com/v23.0';
+const BASE_URL = 'https://graph.facebook.com/v26.0';
 const PHONE_ID = '1111111111';
 
 const SUCCESS: SendMessageResponse = {
@@ -815,5 +815,110 @@ describe('MessagesResource address message', () => {
         footer: 'a'.repeat(61),
       }),
     ).toThrow(WhatsAppValidationError);
+  });
+});
+const BSUID = 'US.13491208655302741918';
+describe('MessagesResource BSUID recipients', () => {
+  it('sendText to a BSUID sends recipient and omits to', async () => {
+    await makeClient().messages.sendText({ bsuid: BSUID }, 'Hello');
+    const { body } = lastRequest();
+    expect(body.recipient).toBe(BSUID);
+    expect(body).not.toHaveProperty('to');
+    expect(body.type).toBe('text');
+    expect(body.text).toEqual({ body: 'Hello' });
+  });
+  it('sendImage to a BSUID sends recipient and omits to', async () => {
+    await makeClient().messages.sendImage({ bsuid: BSUID }, { link: 'https://example.com/a.png' });
+    expect(lastRequest().body.recipient).toBe(BSUID);
+    expect(lastRequest().body).not.toHaveProperty('to');
+  });
+  it('sendReaction to a BSUID sends recipient and omits to', async () => {
+    await makeClient().messages.sendReaction(
+      { bsuid: BSUID },
+      { messageId: 'wamid.X', emoji: '👍' },
+    );
+    expect(lastRequest().body.recipient).toBe(BSUID);
+    expect(lastRequest().body).not.toHaveProperty('to');
+  });
+  it('keeps sending a string recipient as to, without recipient', async () => {
+    await makeClient().messages.sendText('15551234567', 'Hello');
+    const { body } = lastRequest();
+    expect(body.to).toBe('15551234567');
+    expect(body).not.toHaveProperty('recipient');
+  });
+  it('rejects an empty BSUID without calling fetch', () => {
+    expect(() => makeClient().messages.sendText({ bsuid: '' }, 'Hello')).toThrow(
+      WhatsAppValidationError,
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+describe('MessagesResource sendRaw', () => {
+  it('POSTs to {phoneNumberId}/messages and injects messaging_product', async () => {
+    const response = await makeClient().messages.sendRaw({
+      to: '1555',
+      type: 'text',
+      text: { body: 'x' },
+    });
+    const { url, init, body } = lastRequest();
+    expect(url).toBe(`${BASE_URL}/${PHONE_ID}/messages`);
+    expect(init.method).toBe('POST');
+    expect(body).toEqual({
+      messaging_product: 'whatsapp',
+      to: '1555',
+      type: 'text',
+      text: { body: 'x' },
+    });
+    expect(response.messages[0]?.id).toBe('wamid.ABC123');
+  });
+  it('keeps a caller-provided messaging_product and does not mutate the body', async () => {
+    const input = { messaging_product: 'custom', to: '1555' };
+    await makeClient().messages.sendRaw(input);
+    expect(lastRequest().body.messaging_product).toBe('custom');
+    expect(input).toEqual({ messaging_product: 'custom', to: '1555' });
+  });
+  it('uses a phoneNumberId override', async () => {
+    await makeClient().messages.sendRaw({ to: '1555' }, { phoneNumberId: '999' });
+    expect(lastRequest().url).toBe(`${BASE_URL}/999/messages`);
+  });
+  it('throws WhatsAppValidationError when no phoneNumberId is available', () => {
+    const client = new WhatsAppClient({ accessToken: 'secret-token' });
+    expect(() => client.messages.sendRaw({ to: '1555' })).toThrow(WhatsAppValidationError);
+  });
+  it('returns the declared generic result type', async () => {
+    const custom = { custom: true };
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(custom), { status: 200 }));
+    const result = await makeClient().messages.sendRaw<{ custom: boolean }>({ to: '1555' });
+    expect(result.custom).toBe(true);
+  });
+  it('maps a 4xx to WhatsAppApiError without retrying', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ error: { message: 'bad', type: 'OAuthException', code: 100 } }),
+        {
+          status: 400,
+        },
+      ),
+    );
+    await expect(makeClient().messages.sendRaw({ to: '1555' })).rejects.toBeInstanceOf(
+      WhatsAppApiError,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it('retries a 5xx and then succeeds', async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ error: { message: 'oops', code: 1 } }), { status: 500 }),
+        )
+        .mockResolvedValueOnce(new Response(JSON.stringify(SUCCESS), { status: 200 }));
+      const promise = makeClient().messages.sendRaw({ to: '1555' });
+      await vi.runAllTimersAsync();
+      await expect(promise).resolves.toEqual(SUCCESS);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

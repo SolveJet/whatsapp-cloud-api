@@ -422,3 +422,141 @@ describe('WebhookHandler', () => {
     ).toBe(true);
   });
 });
+const bsuidMetadata = {
+  display_phone_number: '15550783881',
+  phone_number_id: '106540352242922',
+};
+describe('BSUID webhook fields', () => {
+  // Source: business-scoped-user-ids doc, "Incoming messages webhooks" (username user, parent BSUIDs enabled).
+  const incoming = envelope({
+    messaging_product: 'whatsapp',
+    metadata: bsuidMetadata,
+    contacts: [
+      {
+        profile: { name: 'Sheena Nelson', username: '@sheena' },
+        user_id: 'US.13491208655302741918',
+        parent_user_id: 'US.ENT.11815799212886844830',
+      },
+    ],
+    messages: [
+      {
+        from_user_id: 'US.13491208655302741918',
+        from_parent_user_id: 'US.ENT.11815799212886844830',
+        id: 'wamid.HBgLMTY1MDUwNzY1MjAVAgASGBQzQUZCMTY0MDc2MUYwNzBDNTY5MAA=',
+        timestamp: '1504902988',
+        type: 'text',
+        text: { body: 'Hello' },
+      },
+    ],
+  });
+  // Source: same doc, "Status messages webhooks" (delivered, with contacts and recipient_user_id).
+  const delivered = envelope({
+    messaging_product: 'whatsapp',
+    metadata: bsuidMetadata,
+    contacts: [
+      {
+        profile: { username: '@sheena' },
+        user_id: 'US.13491208655302741918',
+        parent_user_id: 'US.ENT.11815799212886844830',
+      },
+    ],
+    statuses: [
+      {
+        id: 'wamid.HBgLMTY1MDUwNzY1MjAVAgARGBI5QTNDQTVCM0Q0Q0Q2RTY3RTcA',
+        status: 'delivered',
+        timestamp: '1504902988',
+        recipient_user_id: 'US.13491208655302741918',
+        recipient_parent_user_id: 'US.ENT.11815799212886844830',
+      },
+    ],
+  });
+  // Source: same doc, "Status messages webhooks" failed example (no contacts, no recipient_user_id).
+  const failed = envelope({
+    messaging_product: 'whatsapp',
+    metadata: bsuidMetadata,
+    statuses: [
+      {
+        id: 'wamid.HBgLMTY1MDUwNzY1MjAVAgARGBI5QTNDQTVCM0Q0Q0Q2RTY3RTcA',
+        status: 'failed',
+        timestamp: '1504902988',
+        recipient_id: '16505076520',
+        errors: [{ code: 131026, title: 'Message undeliverable' }],
+      },
+    ],
+  });
+  // Source: same doc, "user_preferences webhooks" (contacts carry user_id, no wa_id).
+  const preferences = envelope({
+    messaging_product: 'whatsapp',
+    metadata: bsuidMetadata,
+    contacts: [
+      {
+        profile: { name: 'Sheena Nelson', username: '@sheena' },
+        user_id: 'US.13491208655302741918',
+      },
+    ],
+  });
+  // Source: same doc, "System messages webhooks" (user_changed_user_id).
+  const system = envelope({
+    messaging_product: 'whatsapp',
+    metadata: bsuidMetadata,
+    messages: [
+      {
+        from_user_id: 'US.13491208655302741918',
+        id: 'wamid.SYSTEM1',
+        timestamp: '1504902988',
+        type: 'system',
+        system: {
+          body: 'User changed from US.11111111111111111111 to US.13491208655302741918',
+          user_id: 'US.13491208655302741918',
+          previous_user_id: 'US.11111111111111111111',
+          type: 'user_changed_user_id',
+        },
+      },
+    ],
+  });
+  it('exposes BSUID, parent BSUID and username on incoming messages and contacts', () => {
+    const [message] = extractMessages(incoming);
+    expect(message?.from_user_id).toBe('US.13491208655302741918');
+    expect(message?.from_parent_user_id).toBe('US.ENT.11815799212886844830');
+    const contact = incoming.entry[0]?.changes[0]?.value.contacts?.[0];
+    expect(contact?.user_id).toBe('US.13491208655302741918');
+    expect(contact?.parent_user_id).toBe('US.ENT.11815799212886844830');
+    expect(contact?.profile?.username).toBe('@sheena');
+  });
+  it('exposes recipient_user_id on a delivered status with contacts', () => {
+    const [status] = extractStatuses(delivered);
+    expect(status?.recipient_user_id).toBe('US.13491208655302741918');
+    expect(status?.recipient_parent_user_id).toBe('US.ENT.11815799212886844830');
+    expect(delivered.entry[0]?.changes[0]?.value.contacts?.[0]?.user_id).toBe(
+      'US.13491208655302741918',
+    );
+  });
+  it('parses a failed status without contacts or recipient_user_id', () => {
+    const [status] = extractStatuses(failed);
+    expect(status?.recipient_user_id).toBeUndefined();
+    expect(failed.entry[0]?.changes[0]?.value.contacts).toBeUndefined();
+  });
+  it('parses contacts that carry only BSUIDs', () => {
+    const parsed = parseWebhook(preferences);
+    const contact = parsed.entry[0]?.changes[0]?.value.contacts?.[0];
+    expect(contact?.user_id).toBe('US.13491208655302741918');
+    expect(contact?.wa_id).toBeUndefined();
+  });
+  it('narrows a system message and exposes previous_user_id', () => {
+    const [message] = extractMessages(system);
+    expect(message?.type).toBe('system');
+    if (message?.type === 'system') {
+      expect(message.system.type).toBe('user_changed_user_id');
+      expect(message.system.previous_user_id).toBe('US.11111111111111111111');
+    }
+  });
+  it('WebhookHandler.parse verifies the signature over the raw body and keeps the fields', () => {
+    const rawBody = JSON.stringify(incoming);
+    const handler = new WebhookHandler({ appSecret: APP_SECRET });
+    const result = handler.parse(rawBody, sign(rawBody, APP_SECRET));
+    expect(result.messages[0]?.from_user_id).toBe('US.13491208655302741918');
+    expect(() => handler.parse(rawBody, sign(rawBody, 'wrong-secret'))).toThrow(
+      WhatsAppWebhookError,
+    );
+  });
+});

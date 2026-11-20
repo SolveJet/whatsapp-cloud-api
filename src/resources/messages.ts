@@ -25,11 +25,13 @@ import type {
   LocationPayload,
   LocationRequestPayload,
   MediaSource,
+  MessageRecipient,
   ProductListPayload,
   ProductPayload,
   ReactionPayload,
   SendMessageResponse,
   SendOptions,
+  SendRawOptions,
   TemplatePayload,
   TextMessageOptions,
 } from '../types/messages.js';
@@ -92,7 +94,7 @@ export class MessagesResource {
 
   /** Sends a text message, optionally enabling link previews. */
   sendText(
-    to: string,
+    to: MessageRecipient,
     text: string,
     opts?: TextMessageOptions,
     options?: SendOptions,
@@ -112,7 +114,7 @@ export class MessagesResource {
 
   /** Sends an image message from an uploaded media id or a public link. */
   sendImage(
-    to: string,
+    to: MessageRecipient,
     image: CaptionedMedia,
     options?: SendOptions,
   ): Promise<SendMessageResponse> {
@@ -122,7 +124,7 @@ export class MessagesResource {
 
   /** Sends a video message from an uploaded media id or a public link. */
   sendVideo(
-    to: string,
+    to: MessageRecipient,
     video: CaptionedMedia,
     options?: SendOptions,
   ): Promise<SendMessageResponse> {
@@ -131,14 +133,18 @@ export class MessagesResource {
   }
 
   /** Sends an audio message from an uploaded media id or a public link. */
-  sendAudio(to: string, audio: MediaSource, options?: SendOptions): Promise<SendMessageResponse> {
+  sendAudio(
+    to: MessageRecipient,
+    audio: MediaSource,
+    options?: SendOptions,
+  ): Promise<SendMessageResponse> {
     this.assertMedia(audio, 'audio');
     return this.send(to, 'audio', audio, undefined, options);
   }
 
   /** Sends a document message, with optional caption and display filename. */
   sendDocument(
-    to: string,
+    to: MessageRecipient,
     document: DocumentMedia,
     options?: SendOptions,
   ): Promise<SendMessageResponse> {
@@ -148,7 +154,7 @@ export class MessagesResource {
 
   /** Sends a sticker message from an uploaded media id or a public link. */
   sendSticker(
-    to: string,
+    to: MessageRecipient,
     sticker: MediaSource,
     options?: SendOptions,
   ): Promise<SendMessageResponse> {
@@ -158,7 +164,7 @@ export class MessagesResource {
 
   /** Sends a location message. */
   sendLocation(
-    to: string,
+    to: MessageRecipient,
     location: LocationPayload,
     options?: SendOptions,
   ): Promise<SendMessageResponse> {
@@ -178,7 +184,7 @@ export class MessagesResource {
 
   /** Sends one or more contact cards. */
   sendContacts(
-    to: string,
+    to: MessageRecipient,
     contacts: Contact[],
     options?: SendOptions,
   ): Promise<SendMessageResponse> {
@@ -187,7 +193,7 @@ export class MessagesResource {
 
   /** Sends a pre-approved message template. */
   sendTemplate(
-    to: string,
+    to: MessageRecipient,
     template: TemplatePayload,
     options?: SendOptions,
   ): Promise<SendMessageResponse> {
@@ -210,7 +216,7 @@ export class MessagesResource {
    * Throws {@link WhatsAppValidationError} when more than three buttons are given.
    */
   sendInteractiveButtons(
-    to: string,
+    to: MessageRecipient,
     payload: InteractiveButtonsPayload,
     options?: SendOptions,
   ): Promise<SendMessageResponse> {
@@ -238,7 +244,7 @@ export class MessagesResource {
 
   /** Sends an interactive list message with grouped selectable rows. */
   sendInteractiveList(
-    to: string,
+    to: MessageRecipient,
     payload: InteractiveListPayload,
     options?: SendOptions,
   ): Promise<SendMessageResponse> {
@@ -275,7 +281,7 @@ export class MessagesResource {
    * button that opens the given URL.
    */
   sendInteractiveCtaUrl(
-    to: string,
+    to: MessageRecipient,
     payload: CtaUrlPayload,
     options?: SendOptions,
   ): Promise<SendMessageResponse> {
@@ -301,7 +307,7 @@ export class MessagesResource {
 
   /** Sends an interactive flow message that opens a WhatsApp Flow. */
   sendInteractiveFlow(
-    to: string,
+    to: MessageRecipient,
     payload: FlowPayload,
     options?: SendOptions,
   ): Promise<SendMessageResponse> {
@@ -339,7 +345,7 @@ export class MessagesResource {
 
   /** Sends an interactive location-request message prompting the user to share. */
   sendLocationRequest(
-    to: string,
+    to: MessageRecipient,
     payload: LocationRequestPayload,
     options?: SendOptions,
   ): Promise<SendMessageResponse> {
@@ -359,7 +365,7 @@ export class MessagesResource {
 
   /** Sends a single-product interactive message from a catalog. */
   sendProduct(
-    to: string,
+    to: MessageRecipient,
     payload: ProductPayload,
     options?: SendOptions,
   ): Promise<SendMessageResponse> {
@@ -390,7 +396,7 @@ export class MessagesResource {
 
   /** Sends a multi-product interactive message from a catalog. */
   sendProductList(
-    to: string,
+    to: MessageRecipient,
     payload: ProductListPayload,
     options?: SendOptions,
   ): Promise<SendMessageResponse> {
@@ -429,7 +435,7 @@ export class MessagesResource {
    * interactive `nfm_reply`.
    */
   sendAddressMessage(
-    to: string,
+    to: MessageRecipient,
     payload: AddressMessagePayload,
     options?: SendOptions,
   ): Promise<SendMessageResponse> {
@@ -481,7 +487,7 @@ export class MessagesResource {
    * Passing an empty `emoji` removes a previously applied reaction.
    */
   sendReaction(
-    to: string,
+    to: MessageRecipient,
     reaction: ReactionPayload,
     options?: SendOptions,
   ): Promise<SendMessageResponse> {
@@ -533,16 +539,48 @@ export class MessagesResource {
     });
   }
 
+  /**
+   * Escape hatch: POSTs an arbitrary message body to `{phoneNumberId}/messages`.
+   *
+   * Use it for message shapes or fields Meta has released that the typed
+   * senders do not cover yet. `messaging_product: 'whatsapp'` is added when the
+   * body does not set it. The body is sent as given: there is no client-side
+   * validation. Retries, timeouts and error mapping are the same as for the
+   * other senders. The result type is whatever you declare in `TResponse`.
+   *
+   * @example
+   * await client.messages.sendRaw({
+   *   recipient: 'US.13491208655302741918',
+   *   type: 'text',
+   *   text: { body: 'Hello' },
+   * });
+   */
+  sendRaw<TResponse = SendMessageResponse>(
+    body: Record<string, unknown>,
+    options?: SendRawOptions,
+  ): Promise<TResponse> {
+    const id = this.resolvePhoneNumberId(options?.phoneNumberId);
+    return this.request<TResponse>({
+      method: 'POST',
+      path: `${id}/messages`,
+      body: { messaging_product: 'whatsapp', ...body },
+    });
+  }
   /** Builds the common message envelope and POSTs it to the messages endpoint. */
   private send(
-    to: string,
+    to: MessageRecipient,
     type: string,
     payload: unknown,
     phoneNumberId?: string,
     options?: SendOptions,
   ): Promise<SendMessageResponse> {
-    if (to === '') {
-      throw new WhatsAppValidationError('A non-empty "to" recipient is required.');
+    const address = typeof to === 'string' ? to : to.bsuid;
+    if (address === '') {
+      throw new WhatsAppValidationError(
+        typeof to === 'string'
+          ? 'A non-empty "to" recipient is required.'
+          : 'A non-empty BSUID recipient is required.',
+      );
     }
     const id = this.resolvePhoneNumberId(phoneNumberId);
     return this.request<SendMessageResponse>({
@@ -551,7 +589,7 @@ export class MessagesResource {
       body: {
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
-        to,
+        ...(typeof to === 'string' ? { to } : { recipient: to.bsuid }),
         type,
         ...(options?.replyToMessageId !== undefined
           ? { context: { message_id: options.replyToMessageId } }
