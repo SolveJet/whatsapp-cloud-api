@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.3.1] - 2026-11-21
+## [1.3.1] - 2026-11-20
 
 ### Security
 
@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `WebhookHandler.parse` and `parseWebhook` reject string and byte bodies larger than 3 MiB (Meta's documented maximum) before parsing. Configure it with the new `maxBodyBytes` option (`WebhookHandlerConfig.maxBodyBytes`, `ParseWebhookOptions.maxBodyBytes`); `false` disables the check.
 
 ### Fixed
+
+- Trailing slashes of `baseUrl` are now trimmed in linear time instead of with a backtracking regular expression.
 
 - `extractMessages` and `extractStatuses` no longer throw `RangeError` on arrays of about 125,000 or more elements, skip non-object elements of `messages` and `statuses`, and treat non-array `changes` and non-object `entry` items as empty instead of throwing a `TypeError`.
 - Byte bodies are decoded with `TextDecoder` (`ignoreBOM`). A plain `Uint8Array` body previously decoded to a comma-separated list of numbers and failed with "not valid JSON".

@@ -6,19 +6,27 @@ const make = (baseUrl: string, apiVersion = 'v22.0'): WhatsAppClient =>
 
 describe('baseUrl trailing slash trimming', () => {
   it('trims a single trailing slash', () => {
-    expect(make('https://graph.facebook.com/').getBaseUrl()).toBe('https://graph.facebook.com/v22.0');
+    expect(make('https://graph.facebook.com/').getBaseUrl()).toBe(
+      'https://graph.facebook.com/v22.0',
+    );
   });
 
   it('trims several trailing slashes', () => {
-    expect(make('https://graph.facebook.com//').getBaseUrl()).toBe('https://graph.facebook.com/v22.0');
+    expect(make('https://graph.facebook.com//').getBaseUrl()).toBe(
+      'https://graph.facebook.com/v22.0',
+    );
   });
 
   it('leaves a base URL without trailing slashes unchanged', () => {
-    expect(make('https://graph.facebook.com').getBaseUrl()).toBe('https://graph.facebook.com/v22.0');
+    expect(make('https://graph.facebook.com').getBaseUrl()).toBe(
+      'https://graph.facebook.com/v22.0',
+    );
   });
 
   it('keeps inner slashes', () => {
-    expect(make('https://example.com/proxy//x/').getBaseUrl()).toBe('https://example.com/proxy//x/v22.0');
+    expect(make('https://example.com/proxy//x/').getBaseUrl()).toBe(
+      'https://example.com/proxy//x/v22.0',
+    );
   });
 
   it('handles a long run of slashes followed by another character in linear time', () => {
