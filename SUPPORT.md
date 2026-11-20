@@ -5,11 +5,16 @@ This SDK is an independent project. It is not affiliated with or endorsed by Met
 ## Usage questions
 
 1. Search the [README](README.md) and the `examples/` directory.
-2. If you still need help, open a GitHub issue using the [Question template](https://github.com/SolveJet/whatsapp-cloud-api/issues/new?template=question.yml).
+2. If you still need help, ask in [GitHub Discussions, Q&A](https://github.com/SolveJet/whatsapp-cloud-api/discussions/categories/q-a).
+
+## Ideas and showing your work
+
+- Share ideas in [Ideas](https://github.com/SolveJet/whatsapp-cloud-api/discussions/categories/ideas).
+- Show what you built in [Show and tell](https://github.com/SolveJet/whatsapp-cloud-api/discussions/categories/show-and-tell).
 
 ## Bugs and feature requests
 
-Use the [issue templates](https://github.com/SolveJet/whatsapp-cloud-api/issues/new/choose).
+Use the [issue templates](https://github.com/SolveJet/whatsapp-cloud-api/issues/new/choose) for bugs and concrete feature requests.
 
 ## Security vulnerabilities
 

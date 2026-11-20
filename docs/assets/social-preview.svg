@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" font-family="'DejaVu Sans', 'Liberation Sans', Arial, sans-serif">
+<rect width="1280" height="640" fill="#0d1117"/>
+<circle cx="1180" cy="60" r="220" fill="#12263d" opacity="0.6"/>
+<circle cx="1280" cy="200" r="120" fill="#16324f" opacity="0.5"/>
+<rect x="0" y="0" width="12" height="640" fill="#58a6ff"/>
+<text x="64" y="124" font-family="'DejaVu Sans Mono', 'Liberation Mono', monospace" font-size="50" font-weight="bold" fill="#ffffff">@solvejet/whatsapp-cloud-api</text>
+<text x="64" y="176" font-size="28" fill="#c9d1d9">Zero-dependency TypeScript SDK for the WhatsApp Cloud API</text>
+<rect x="64" y="218" width="149" height="48" rx="24" fill="#16324f" stroke="#3b82c4"/><text x="138.5" y="249.7" text-anchor="middle" font-size="22" fill="#e6f1ff">Messages</text>
+<rect x="227" y="218" width="163" height="48" rx="24" fill="#16324f" stroke="#3b82c4"/><text x="308.5" y="249.7" text-anchor="middle" font-size="22" fill="#e6f1ff">Templates</text>
+<rect x="404" y="218" width="149" height="48" rx="24" fill="#16324f" stroke="#3b82c4"/><text x="478.5" y="249.7" text-anchor="middle" font-size="22" fill="#e6f1ff">Webhooks</text>
+<rect x="567" y="218" width="108" height="48" rx="24" fill="#16324f" stroke="#3b82c4"/><text x="621.0" y="249.7" text-anchor="middle" font-size="22" fill="#e6f1ff">Media</text>
+<rect x="689" y="218" width="108" height="48" rx="24" fill="#16324f" stroke="#3b82c4"/><text x="743.0" y="249.7" text-anchor="middle" font-size="22" fill="#e6f1ff">Flows</text>
+<rect x="811" y="218" width="204" height="48" rx="24" fill="#16324f" stroke="#3b82c4"/><text x="913.0" y="249.7" text-anchor="middle" font-size="22" fill="#e6f1ff">Typed errors</text>
+<rect x="64" y="298" width="1152" height="136" rx="12" fill="#161b22" stroke="#30363d"/>
+<circle cx="92" cy="324" r="6" fill="#ff7b72"/><circle cx="112" cy="324" r="6" fill="#e3b341"/><circle cx="132" cy="324" r="6" fill="#56d364"/>
+<g font-family="'DejaVu Sans Mono', 'Liberation Mono', monospace" font-size="21">
+<text x="92" y="372" fill="#e6edf3"><tspan fill="#ff7b72">const</tspan> client = <tspan fill="#ff7b72">new</tspan> <tspan fill="#d2a8ff">WhatsAppClient</tspan>({ accessToken, phoneNumberId });</text>
+<text x="92" y="410" fill="#e6edf3"><tspan fill="#ff7b72">await</tspan> client.messages.<tspan fill="#d2a8ff">sendText</tspan>(<tspan fill="#a5d6ff">'15551234567'</tspan>, <tspan fill="#a5d6ff">'Hello!'</tspan>);</text>
+</g>
+<rect x="64" y="462" width="129" height="38" rx="19" fill="#161b22" stroke="#30363d"/><text x="128.5" y="487.3" text-anchor="middle" font-size="18" fill="#c9d1d9">Node 20+</text>
+<rect x="207" y="462" width="140" height="38" rx="19" fill="#161b22" stroke="#30363d"/><text x="277.0" y="487.3" text-anchor="middle" font-size="18" fill="#c9d1d9">ESM + CJS</text>
+<rect x="361" y="462" width="196" height="38" rx="19" fill="#161b22" stroke="#30363d"/><text x="459.0" y="487.3" text-anchor="middle" font-size="18" fill="#c9d1d9">npm provenance</text>
+<text x="64" y="556" font-size="20" fill="#b1bac4">Independent open-source project. Not affiliated with Meta or WhatsApp.</text>
+</svg>
