@@ -197,7 +197,7 @@ export function verify(request: Request): Response {
   return new Response(body, { status: statusCode });
 }
 
-// POST: deliveries. Read the raw text, not request.json().
+// POST: deliveries. Read the raw body, not request.json().
 export async function receive(request: Request): Promise<Response> {
   const rawBody = await request.text();
   try {
@@ -300,7 +300,8 @@ See [Error handling](./errors.md) for the full class list.
   where to queue the work.
 - **Raw body is required.** Signature verification hashes the exact bytes Meta
   sent. If a JSON parser runs first and you re-serialize, the bytes change and
-  valid requests fail. In Express, use `express.raw({ type: 'application/json' })`
+  valid requests fail. Pass the raw body as a string, `Buffer`, `Uint8Array` or
+  `ArrayBuffer`. In Express, use `express.raw({ type: 'application/json' })`
   or `express.json({ verify })` to keep the buffer on that route. In Next.js
   route handlers use `await request.text()`.
 - **Signature verification is new for you.** 0.3.1 only checks the verify token
@@ -308,10 +309,25 @@ See [Error handling](./errors.md) for the full class list.
   `verifySignature` computes the HMAC-SHA256 of the raw body with your App
   Secret and compares it in constant time. You need the **App Secret** (Meta
   app dashboard), which is separate from the verify token.
-- **`WebhookHandler` without `appSecret` skips verification.** As of 1.3.0,
-  `handler.parse(...)` does not verify when the handler has no `appSecret`.
-  Always set it in production, and check the
-  [CHANGELOG](../CHANGELOG.md) for later releases.
+- **Unset secrets throw at construction.** `new WebhookHandler({ verifyToken,
+appSecret })` throws `WhatsAppWebhookError` when either value is present but
+  `undefined`, empty or not a string. An unset environment variable therefore
+  fails at startup instead of silently turning verification off, and the `!`
+  non-null assertion in the examples does not change that at runtime. Omitting
+  the `appSecret` key entirely still means no signature enforcement
+  (`handler.parse(...)` skips the check), so set it in production.
+  `verifySignature(rawBody, header, secret)` returns `false`, and does not
+  throw, for an empty or non-string secret, a bad header or an unsupported body
+  type.
+- **Only the `messages` field is read.** `extractMessages`, `extractStatuses`
+  and `handler.parse` return data from changes whose `field` is `messages`.
+  Other fields, such as call events from the `calls` field, are not returned as
+  messages or statuses; read them from `parsed.raw`.
+- **Body size and errors.** String and byte bodies over 3 MiB (Meta's documented
+  maximum) are rejected before parsing. Change this with `maxBodyBytes` on the
+  handler or `parseWebhook` options, or pass `false` to turn the check off.
+  "Not valid JSON" errors do not carry the parser error as `cause`, because its
+  message can include a fragment of the request body.
 - **Errors are classes.** `WhatsAppApiError` and subclasses carry `.code`,
   `.httpStatus`, and (for rate limits) `.retryAfterMs`. Network and timeout
   failures are `WhatsAppRequestError`. Local limit checks throw
@@ -330,6 +346,10 @@ See [Error handling](./errors.md) for the full class list.
 - **Recipients.** `to` is a string. It can also be `{ bsuid }` for
   business-scoped user IDs. Incoming `from` can be missing when a sender uses a
   username and shares no phone number; check `from_user_id` as well.
+- **Message shapes without a typed sender.** If you sent a message body that
+  this SDK does not wrap yet, `client.messages.sendRaw(body)` posts any body to
+  the messages endpoint. It is not validated on the client, so the local limit
+  checks do not apply.
 - **Graph version.** Default is `v26.0` (0.3.1 defaulted to `v14.0`). Set
   `apiVersion` if you need to pin another one.
 - **Module formats.** ESM and CommonJS both work. Node 20 or newer is required.
@@ -358,11 +378,15 @@ See [Error handling](./errors.md) for the full class list.
 3. Replace `createBot(...)` with `new WhatsAppClient({ accessToken, phoneNumberId })`.
 4. Rename each send call using the table. Media and template arguments become
    objects.
-5. Replace `startExpressServer` with your own routes. Keep the raw body on the
-   webhook route.
+5. Replace `startExpressServer` with your own routes. Keep the raw body bytes
+   on the webhook route and pass them to `handler.parse` unchanged.
 6. Get your **App Secret** and the **verify token**, and create a
-   `WebhookHandler` with both. Test with a real delivery from Meta.
+   `WebhookHandler` with both. Make sure both environment variables are set,
+   because an empty value throws at construction. Test with a real delivery
+   from Meta.
 7. Replace `bot.on(...)` listeners with a loop over `handler.parse(...).messages`.
+   Read statuses from `.statuses`, and anything from other webhook fields from
+   `.raw`. Raise `maxBodyBytes` only if you expect bodies over 3 MiB.
 8. Replace `catch (err)` code that expected a plain object or string with
    `instanceof` checks on the error classes.
 9. Decide on `maxRetries` and message de-duplication.

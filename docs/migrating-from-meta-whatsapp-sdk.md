@@ -284,7 +284,7 @@ export async function receive(request: Request): Promise<Response> {
 
 `whatsapp` accepts a `replyMessageId` as the last argument of each send method
 and adds `context: { message_id }` to the body. This package does not have a
-typed option for it on the senders in 1.3.0. Use `sendRaw`, which posts any
+typed option for it on the senders. Use `sendRaw`, which posts any
 body and is not validated on the client:
 
 ```ts
@@ -333,16 +333,35 @@ await client.messages.sendRaw({
   with `==`.
 - **Raw body is required.** Whatever web framework you use, give
   `WebhookHandler.parse` the exact bytes Meta sent. If your framework parses
-  JSON first and you re-serialize it, the signature will not match. In Express
-  use `express.raw({ type: 'application/json' })` (or `express.json({ verify })`)
-  on the webhook route; in Next.js route handlers use `await request.text()`.
-- **`WebhookHandler` without `appSecret` skips verification.** As of 1.3.0,
-  `handler.parse(...)` verifies only when the handler was given an `appSecret`.
-  Always set it in production, and check the [CHANGELOG](../CHANGELOG.md) for
-  later releases.
+  JSON first and you re-serialize it, the signature will not match. Pass the raw body as a string, `Buffer`, `Uint8Array` or
+  `ArrayBuffer`. In Express, use `express.raw({ type: 'application/json' })`
+  or `express.json({ verify })` to keep the buffer on that route. In Next.js
+  route handlers use `await request.text()`.
+- **Unset secrets throw at construction.** `new WebhookHandler({ verifyToken,
+appSecret })` throws `WhatsAppWebhookError` when either value is present but
+  `undefined`, empty or not a string. An unset environment variable therefore
+  fails at startup instead of silently turning verification off, and the `!`
+  non-null assertion in the examples does not change that at runtime. Omitting
+  the `appSecret` key entirely still means no signature enforcement
+  (`handler.parse(...)` skips the check), so set it in production.
+  `verifySignature(rawBody, header, secret)` returns `false`, and does not
+  throw, for an empty or non-string secret, a bad header or an unsupported body
+  type.
+- **Only the `messages` field is read.** `extractMessages`, `extractStatuses`
+  and `handler.parse` return data from changes whose `field` is `messages`.
+  Other fields, such as call events from the `calls` field, are not returned as
+  messages or statuses; read them from `parsed.raw`.
+- **Body size and errors.** String and byte bodies over 3 MiB (Meta's documented
+  maximum) are rejected before parsing. Change this with `maxBodyBytes` on the
+  handler or `parseWebhook` options, or pass `false` to turn the check off.
+  "Not valid JSON" errors do not carry the parser error as `cause`, because its
+  message can include a fragment of the request body.
 - **No server.** This package does not start an HTTP listener, so there is no
   port, path or `stop()` to configure.
-- **Recipient type.** `to` is a string, not a number.
+- **Recipient type.** `to` is a string, not a number. It can also be
+  `{ bsuid }` for business-scoped user IDs. For message bodies that this SDK
+  does not wrap yet, `client.messages.sendRaw(body)` posts any body and skips
+  the client-side checks.
 - **Module formats.** Both ESM and CommonJS work. Node 20 or newer is required.
 
 ## What the `whatsapp` package does that this package does not
@@ -373,8 +392,13 @@ await client.messages.sendRaw({
 phoneNumberId, businessAccountId, apiVersion })`.
 4. Rename each `wa.messages.*` call using the table. Recipients become strings.
 5. Replace `wa.messages.status(...)` with `client.messages.markAsRead(...)`.
-6. Replace `wa.webhooks.start(cb)` with your own routes. Keep the raw body, and
-   create a `WebhookHandler` with both the verify token and the App Secret.
+6. Replace `wa.webhooks.start(cb)` with your own routes. Keep the raw body
+   bytes and pass them to `handler.parse` unchanged. Create a `WebhookHandler`
+   with both the verify token and the App Secret; an empty value for either
+   throws at construction, so check your environment variables. The callback's
+   parsed `body` becomes `parsed.raw`, and messages and statuses come from the
+   `messages` field only. Bodies over 3 MiB are rejected unless you set
+   `maxBodyBytes`.
 7. Replace status-code checks on response objects with `try`/`catch` on the
    error classes.
 8. Decide on `maxRetries` and message de-duplication.
