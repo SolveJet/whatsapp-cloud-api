@@ -126,6 +126,7 @@ export type {
   LocationIncomingMessage,
   MessageStatus,
   ParsedWebhook,
+  ParseWebhookOptions,
   ReactionIncomingMessage,
   StickerIncomingMessage,
   SystemIncomingMessage,

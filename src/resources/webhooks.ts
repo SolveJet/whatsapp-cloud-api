@@ -19,6 +19,7 @@ import type {
   IncomingMessage,
   MessageStatus,
   ParsedWebhook,
+  ParseWebhookOptions,
   WebhookHandlerConfig,
   WebhookPayload,
   WebhookRawBody,
@@ -63,6 +64,46 @@ const decodeBody = (body: unknown): string | undefined => {
     return hashable;
   }
   return new TextDecoder('utf-8', { ignoreBOM: true }).decode(hashable);
+};
+
+/** Meta's documented maximum webhook payload size: 3 MiB. */
+const DEFAULT_MAX_BODY_BYTES = 3 * 1024 * 1024;
+
+/** Resolves and validates a `maxBodyBytes` option. */
+const resolveMaxBodyBytes = (option: unknown): number | false => {
+  if (option === undefined) {
+    return DEFAULT_MAX_BODY_BYTES;
+  }
+  if (option === false) {
+    return false;
+  }
+  if (typeof option !== 'number' || !Number.isSafeInteger(option) || option < 1) {
+    throw new WhatsAppWebhookError('maxBodyBytes must be a positive integer or false.');
+  }
+  return option;
+};
+
+/**
+ * Throws when a string or byte body is larger than `limit` bytes. Other input
+ * types (already parsed objects) have no byte size and are not checked.
+ */
+const assertBodySize = (body: unknown, limit: number | false): void => {
+  if (limit === false) {
+    return;
+  }
+  let size: number;
+  if (typeof body === 'string') {
+    size = Buffer.byteLength(body, 'utf8');
+  } else if (types.isUint8Array(body) || types.isArrayBuffer(body)) {
+    size = body.byteLength;
+  } else {
+    return;
+  }
+  if (size > limit) {
+    throw new WhatsAppWebhookError(
+      `Webhook body of ${size} bytes exceeds the maximum of ${limit} bytes.`,
+    );
+  }
 };
 
 /** True for a string with at least one character. */
@@ -174,9 +215,9 @@ export const verifySignature = (
   return constantTimeEqual(expected, signatureHeader);
 };
 
-/** True when `value` is a non-null object. */
+/** True when `value` is a non-null, non-array object. */
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /**
  * Validates the top-level envelope and returns it typed as a
@@ -186,18 +227,25 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * happens lazily in {@link extractMessages}/{@link extractStatuses} so new Meta
  * message types never break parsing.
  *
+ * String and byte bodies larger than `options.maxBodyBytes` (default 3 MiB,
+ * Meta's documented maximum) are rejected before parsing.
+ *
  * @param body - A parsed webhook object, or its JSON as a string, `Uint8Array`
  *   (including `Buffer`) or `ArrayBuffer`. Byte bodies are decoded as UTF-8.
+ * @param options - Optional size limit override.
  * @throws {@link WhatsAppWebhookError} when the body is unparseable or malformed.
  */
-export const parseWebhook = (body: unknown): WebhookPayload => {
+export const parseWebhook = (body: unknown, options: ParseWebhookOptions = {}): WebhookPayload => {
+  assertBodySize(body, resolveMaxBodyBytes(options.maxBodyBytes));
   let parsed: unknown = body;
   const text = decodeBody(body);
   if (text !== undefined) {
     try {
       parsed = JSON.parse(text);
-    } catch (cause) {
-      throw new WhatsAppWebhookError('Webhook body is not valid JSON.', { cause });
+    } catch {
+      // The SyntaxError is deliberately not attached as `cause`: its message
+      // embeds a fragment of the (possibly unauthenticated) request body.
+      throw new WhatsAppWebhookError('Webhook body is not valid JSON.');
     }
   }
 
@@ -226,21 +274,32 @@ export const isStatusEvent = (
 
 /**
  * Collects each change `value` from `messages` changes across all entries,
- * skipping malformed shapes. A change is read when its `field` is `messages`
- * or is not a string (hand-built envelopes may omit it); every other field
- * (for example `calls`, whose `statuses` are call events) is ignored.
+ * skipping malformed shapes (non-array `changes`, non-object entries, changes
+ * and values). A change is read when its `field` is `messages` or is not a
+ * string (hand-built envelopes may omit it); every other field (for example
+ * `calls`, whose `statuses` are call events) is ignored.
  */
 const iterateValues = (payload: WebhookPayload): WebhookValue[] => {
   const values: WebhookValue[] = [];
-  for (const entry of payload.entry ?? []) {
-    for (const change of entry?.changes ?? []) {
-      const field: unknown = change?.field;
+  const entries: unknown = payload.entry;
+  if (!Array.isArray(entries)) {
+    return values;
+  }
+  for (const entry of entries as unknown[]) {
+    if (!isRecord(entry) || !Array.isArray(entry['changes'])) {
+      continue;
+    }
+    for (const change of entry['changes'] as unknown[]) {
+      if (!isRecord(change)) {
+        continue;
+      }
+      const field = change['field'];
       if (typeof field === 'string' && field !== 'messages') {
         continue;
       }
-      const value = change?.value;
+      const value = change['value'];
       if (isRecord(value)) {
-        values.push(value as WebhookValue);
+        values.push(value as unknown as WebhookValue);
       }
     }
   }
@@ -248,15 +307,29 @@ const iterateValues = (payload: WebhookPayload): WebhookValue[] => {
 };
 
 /**
+ * Appends the object elements of `source` to `target` with an index loop.
+ * Spreading into `push(...source)` throws a `RangeError` for arrays of roughly
+ * 125,000 elements or more; non-object elements are skipped.
+ */
+const appendObjects = <T>(target: T[], source: readonly unknown[]): void => {
+  for (let index = 0; index < source.length; index += 1) {
+    const item = source[index];
+    if (isRecord(item)) {
+      target.push(item as T);
+    }
+  }
+};
+
+/**
  * Flattens all inbound messages across `entry[].changes[].value` for changes
- * whose `field` is `messages`. Returns an empty array when the payload carries
- * none.
+ * whose `field` is `messages`. Non-object elements are skipped. Returns an
+ * empty array when the payload carries none.
  */
 export const extractMessages = (payload: WebhookPayload): IncomingMessage[] => {
   const messages: IncomingMessage[] = [];
   for (const value of iterateValues(payload)) {
     if (isMessageEvent(value)) {
-      messages.push(...value.messages);
+      appendObjects(messages, value.messages);
     }
   }
   return messages;
@@ -265,14 +338,14 @@ export const extractMessages = (payload: WebhookPayload): IncomingMessage[] => {
 /**
  * Flattens all message status updates across `entry[].changes[].value` for
  * changes whose `field` is `messages`. Status values under other fields, such
- * as `calls`, are not message statuses and are ignored. Returns an empty array
- * when the payload carries none.
+ * as `calls`, are not message statuses and are ignored. Non-object elements
+ * are skipped. Returns an empty array when the payload carries none.
  */
 export const extractStatuses = (payload: WebhookPayload): MessageStatus[] => {
   const statuses: MessageStatus[] = [];
   for (const value of iterateValues(payload)) {
     if (isStatusEvent(value)) {
-      statuses.push(...value.statuses);
+      appendObjects(statuses, value.statuses);
     }
   }
   return statuses;
@@ -310,6 +383,7 @@ const requireConfiguredSecret = (value: unknown, name: string): string => {
 export class WebhookHandler {
   private readonly appSecret?: string;
   private readonly verifyToken?: string;
+  private readonly maxBodyBytes: number | false;
 
   /**
    * @throws {@link WhatsAppWebhookError} when `appSecret` or `verifyToken` is
@@ -322,6 +396,7 @@ export class WebhookHandler {
     if (Object.hasOwn(config, 'verifyToken')) {
       this.verifyToken = requireConfiguredSecret(config.verifyToken, 'verifyToken');
     }
+    this.maxBodyBytes = resolveMaxBodyBytes(config.maxBodyBytes);
   }
 
   /**
@@ -378,15 +453,20 @@ export class WebhookHandler {
    *
    * @param rawBody - The raw, unparsed request body (string, `Uint8Array`/`Buffer` or `ArrayBuffer`).
    * @param signatureHeader - The `X-Hub-Signature-256` header value, if present.
-   * @throws {@link WhatsAppWebhookError} on failed verification or malformed payload.
+   * A body larger than `maxBodyBytes` (default 3 MiB) is rejected before it is
+   * hashed or parsed.
+   *
+   * @throws {@link WhatsAppWebhookError} on an oversized body, failed verification
+   *   or malformed payload.
    */
   parse(rawBody: WebhookRawBody, signatureHeader?: string): ParsedWebhook {
+    assertBodySize(rawBody, this.maxBodyBytes);
     this.verifyOrThrow(rawBody, signatureHeader);
     const text = decodeBody(rawBody);
     if (text === undefined) {
       throw new WhatsAppWebhookError('Webhook body must be a string, Uint8Array or ArrayBuffer.');
     }
-    const raw = parseWebhook(text);
+    const raw = parseWebhook(text, { maxBodyBytes: false });
     return {
       messages: extractMessages(raw),
       statuses: extractStatuses(raw),

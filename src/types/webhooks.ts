@@ -367,6 +367,24 @@ export interface WebhookHandlerConfig {
   appSecret?: string;
   /** Verify token used during the GET verification handshake. */
   verifyToken?: string;
+  /**
+   * Maximum accepted raw body size in bytes for {@link WebhookHandler.parse}.
+   * Larger bodies throw `WhatsAppWebhookError` before any hashing or parsing.
+   * Defaults to 3 MiB, Meta's documented maximum payload size. Pass `false` to
+   * disable the check.
+   */
+  maxBodyBytes?: number | false;
+}
+
+/** Options for {@link parseWebhook}. */
+export interface ParseWebhookOptions {
+  /**
+   * Maximum accepted size in bytes for a string or byte body. Larger bodies
+   * throw `WhatsAppWebhookError` before parsing. Defaults to 3 MiB, Meta's
+   * documented maximum payload size. Pass `false` to disable the check. It does
+   * not apply to an already parsed object.
+   */
+  maxBodyBytes?: number | false;
 }
 
 /** The result of parsing a verified webhook delivery. */
