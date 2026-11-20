@@ -26,3 +26,5 @@ Thumbs.db
 
 # Git worktrees created for isolated feature work
 .worktrees/
+# Local design assets such as the GitHub social preview; not shipped
+docs/assets/
