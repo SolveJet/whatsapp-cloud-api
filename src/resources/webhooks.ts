@@ -13,6 +13,7 @@
  */
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { types } from 'node:util';
 import { WhatsAppWebhookError } from '../errors.js';
 import type {
   IncomingMessage,
@@ -20,6 +21,7 @@ import type {
   ParsedWebhook,
   WebhookHandlerConfig,
   WebhookPayload,
+  WebhookRawBody,
   WebhookValue,
 } from '../types/webhooks.js';
 
@@ -33,6 +35,35 @@ export interface WebhookVerificationResult {
 
 /** Prefix Meta uses on the `X-Hub-Signature-256` header value. */
 const SIGNATURE_PREFIX = 'sha256=';
+
+/**
+ * Normalizes a raw request body to something `createHmac` can hash without any
+ * re-encoding: strings and byte arrays pass through, an `ArrayBuffer` is viewed
+ * as bytes. Returns `undefined` for any other input type.
+ */
+const toHashable = (body: unknown): string | Uint8Array | undefined => {
+  if (typeof body === 'string' || types.isUint8Array(body)) {
+    return body;
+  }
+  if (types.isArrayBuffer(body)) {
+    return new Uint8Array(body);
+  }
+  return undefined;
+};
+
+/**
+ * Decodes a raw body to text. `ignoreBOM: true` keeps a leading byte-order mark
+ * in the output instead of silently dropping it, so the decoded text always
+ * reflects the bytes that were signed (and `JSON.parse` then rejects it).
+ * Returns `undefined` for an unsupported input type.
+ */
+const decodeBody = (body: unknown): string | undefined => {
+  const hashable = toHashable(body);
+  if (hashable === undefined || typeof hashable === 'string') {
+    return hashable;
+  }
+  return new TextDecoder('utf-8', { ignoreBOM: true }).decode(hashable);
+};
 
 /** True for a string with at least one character. */
 const isNonEmptyString = (value: unknown): value is string =>
@@ -116,7 +147,8 @@ export const verifyWebhookQuery = (
  * signature fail. The app secret and signature are never logged or embedded in
  * errors.
  *
- * @param rawBody - The raw request body (string or Buffer).
+ * @param rawBody - The raw request body: a string, `Uint8Array` (including
+ *   `Buffer`) or `ArrayBuffer`. Any other type yields `false`.
  * @param signatureHeader - The `X-Hub-Signature-256` header value, if present.
  * @param appSecret - The App Secret used to compute the expected signature.
  * @returns `true` only when the signature is present, well-formed, and matches.
@@ -124,17 +156,21 @@ export const verifyWebhookQuery = (
  *   can never validate a signature.
  */
 export const verifySignature = (
-  rawBody: string | Buffer,
+  rawBody: WebhookRawBody,
   signatureHeader: string | undefined,
   appSecret: string,
 ): boolean => {
   if (!isNonEmptyString(appSecret)) {
     return false;
   }
+  const hashable = toHashable(rawBody);
+  if (hashable === undefined) {
+    return false;
+  }
   if (typeof signatureHeader !== 'string' || !signatureHeader.startsWith(SIGNATURE_PREFIX)) {
     return false;
   }
-  const expected = `${SIGNATURE_PREFIX}${createHmac('sha256', appSecret).update(rawBody).digest('hex')}`;
+  const expected = `${SIGNATURE_PREFIX}${createHmac('sha256', appSecret).update(hashable).digest('hex')}`;
   return constantTimeEqual(expected, signatureHeader);
 };
 
@@ -150,14 +186,16 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * happens lazily in {@link extractMessages}/{@link extractStatuses} so new Meta
  * message types never break parsing.
  *
- * @param body - A parsed webhook object or its JSON string.
+ * @param body - A parsed webhook object, or its JSON as a string, `Uint8Array`
+ *   (including `Buffer`) or `ArrayBuffer`. Byte bodies are decoded as UTF-8.
  * @throws {@link WhatsAppWebhookError} when the body is unparseable or malformed.
  */
 export const parseWebhook = (body: unknown): WebhookPayload => {
   let parsed: unknown = body;
-  if (typeof body === 'string') {
+  const text = decodeBody(body);
+  if (text !== undefined) {
     try {
-      parsed = JSON.parse(body);
+      parsed = JSON.parse(text);
     } catch (cause) {
       throw new WhatsAppWebhookError('Webhook body is not valid JSON.', { cause });
     }
@@ -304,10 +342,10 @@ export class WebhookHandler {
    * configured App Secret. Returns `false` (rather than throwing) when no App
    * Secret was configured.
    *
-   * @param rawBody - The raw, unparsed request body bytes.
+   * @param rawBody - The raw, unparsed request body (string, `Uint8Array`/`Buffer` or `ArrayBuffer`).
    * @param signatureHeader - The `X-Hub-Signature-256` header value.
    */
-  isValid(rawBody: string | Buffer, signatureHeader: string | undefined): boolean {
+  isValid(rawBody: WebhookRawBody, signatureHeader: string | undefined): boolean {
     if (this.appSecret === undefined) {
       return false;
     }
@@ -318,11 +356,11 @@ export class WebhookHandler {
    * Verifies the signature and throws on failure. A no-op when no App Secret was
    * configured (nothing to verify against).
    *
-   * @param rawBody - The raw, unparsed request body bytes.
+   * @param rawBody - The raw, unparsed request body (string, `Uint8Array`/`Buffer` or `ArrayBuffer`).
    * @param signatureHeader - The `X-Hub-Signature-256` header value.
    * @throws {@link WhatsAppWebhookError} when verification fails.
    */
-  verifyOrThrow(rawBody: string | Buffer, signatureHeader: string | undefined): void {
+  verifyOrThrow(rawBody: WebhookRawBody, signatureHeader: string | undefined): void {
     if (this.appSecret === undefined) {
       return;
     }
@@ -338,13 +376,17 @@ export class WebhookHandler {
    * {@link WhatsAppWebhookError} before parsing. The raw body is used both for
    * signature verification and for parsing.
    *
-   * @param rawBody - The raw, unparsed request body bytes.
+   * @param rawBody - The raw, unparsed request body (string, `Uint8Array`/`Buffer` or `ArrayBuffer`).
    * @param signatureHeader - The `X-Hub-Signature-256` header value, if present.
    * @throws {@link WhatsAppWebhookError} on failed verification or malformed payload.
    */
-  parse(rawBody: string | Buffer, signatureHeader?: string): ParsedWebhook {
+  parse(rawBody: WebhookRawBody, signatureHeader?: string): ParsedWebhook {
     this.verifyOrThrow(rawBody, signatureHeader);
-    const raw = parseWebhook(typeof rawBody === 'string' ? rawBody : rawBody.toString('utf8'));
+    const text = decodeBody(rawBody);
+    if (text === undefined) {
+      throw new WhatsAppWebhookError('Webhook body must be a string, Uint8Array or ArrayBuffer.');
+    }
+    const raw = parseWebhook(text);
     return {
       messages: extractMessages(raw),
       statuses: extractStatuses(raw),

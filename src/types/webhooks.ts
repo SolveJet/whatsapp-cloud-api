@@ -354,6 +354,13 @@ export interface WebhookPayload {
   entry: WebhookEntry[];
 }
 
+/**
+ * A raw webhook request body: a string, a `Uint8Array` (which includes Node's
+ * `Buffer`) or an `ArrayBuffer`. Always pass the exact bytes received, never a
+ * re-serialized parsed object.
+ */
+export type WebhookRawBody = string | Uint8Array | ArrayBuffer;
+
 /** Configuration for {@link WebhookHandler}. */
 export interface WebhookHandlerConfig {
   /** App Secret used to verify the `X-Hub-Signature-256` header. */

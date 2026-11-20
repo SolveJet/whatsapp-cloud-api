@@ -140,6 +140,7 @@ export type {
   WebhookMessageError,
   WebhookMetadata,
   WebhookPayload,
+  WebhookRawBody,
   WebhookValue,
 } from './types/webhooks.js';
 
