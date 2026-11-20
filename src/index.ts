@@ -126,6 +126,7 @@ export type {
   LocationIncomingMessage,
   MessageStatus,
   ParsedWebhook,
+  ParseWebhookOptions,
   ReactionIncomingMessage,
   StickerIncomingMessage,
   SystemIncomingMessage,
@@ -138,8 +139,10 @@ export type {
   WebhookHandlerConfig,
   WebhookMessageContext,
   WebhookMessageError,
+  WebhookMessageReferral,
   WebhookMetadata,
   WebhookPayload,
+  WebhookRawBody,
   WebhookValue,
 } from './types/webhooks.js';
 
@@ -255,7 +258,13 @@ type ResolvedConfig = Required<
 > &
   Pick<WhatsAppClientConfig, 'phoneNumberId' | 'businessAccountId'>;
 
-const trimTrailingSlashes = (value: string): string => value.replace(/\/+$/, '');
+const trimTrailingSlashes = (value: string): string => {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) {
+    end -= 1;
+  }
+  return end === value.length ? value : value.slice(0, end);
+};
 
 /**
  * WhatsApp Cloud API client.

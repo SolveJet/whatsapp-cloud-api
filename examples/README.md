@@ -14,7 +14,7 @@ Small, runnable examples for `@solvejet/whatsapp-cloud-api`. Every webhook examp
 
 ## Raw body
 
-Meta signs the exact bytes it sends. If a framework parses the JSON first and you re-serialize it, the bytes change and verification fails. Read the body as a string or `Buffer` (`express.raw`, `await request.text()`, `c.req.text()`, a Fastify buffer parser), pass it to `WebhookHandler.parse`, and let the handler parse the JSON after the signature check.
+Meta signs the exact bytes it sends. If a framework parses the JSON first and you re-serialize it, the bytes change and verification fails. Read the raw bytes (`express.raw`, `await request.arrayBuffer()`, `c.req.arrayBuffer()`, a Fastify buffer parser), never a re-serialized `req.body`, and pass them to `WebhookHandler.parse`. The handler parses the JSON after the signature check. Every example returns `401` only for a bad signature and `200` for a signed payload that cannot be parsed, so Meta does not retry it for days.
 
 ## Run
 

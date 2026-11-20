@@ -35,6 +35,8 @@ export interface WebhookContact {
   user_id?: string;
   /** The contact's parent BSUID, only present when parent BSUIDs are enabled. */
   parent_user_id?: string;
+  /** Identity key hash, only present when the identity change check is enabled. */
+  identity_key_hash?: string;
   /** The contact's profile, when provided. */
   profile?: {
     name?: string;
@@ -49,6 +51,47 @@ export interface WebhookMessageContext {
   from?: string;
   /** The WAMID of the referenced message, when present. */
   id?: string;
+  /** `true` when the user forwarded the message to the business (forwarded 5 times or fewer). */
+  forwarded?: boolean;
+  /** `true` when the message was forwarded more than 5 times. */
+  frequently_forwarded?: boolean;
+  /** The product the user referenced via a catalog "Message business" button. */
+  referred_product?: {
+    /** The product catalog ID. */
+    catalog_id: string;
+    /** The product ID in the catalog. */
+    product_retailer_id: string;
+  };
+}
+
+/**
+ * Click to WhatsApp ad attribution, present on a message sent via an ad.
+ *
+ * @see https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/messages/text
+ */
+export interface WebhookMessageReferral {
+  /** The ad URL. */
+  source_url?: string;
+  /** The ad ID. */
+  source_id?: string;
+  /** The source type, e.g. `ad`. */
+  source_type?: string;
+  /** The ad primary text. */
+  body?: string;
+  /** The ad headline. */
+  headline?: string;
+  /** The ad media type, `image` or `video`. */
+  media_type?: string;
+  /** The ad image URL, for image ads. */
+  image_url?: string;
+  /** The ad video URL, for video ads. */
+  video_url?: string;
+  /** The ad video thumbnail URL, for video ads. */
+  thumbnail_url?: string;
+  /** The ad click ID. Omitted for WhatsApp Status ad placements. */
+  ctwa_clid?: string;
+  /** The ad greeting text. */
+  welcome_message?: { text?: string };
 }
 
 /** Fields present on every inbound message variant. */
@@ -70,6 +113,10 @@ interface IncomingMessageBase {
   timestamp: string;
   /** Reply context when this message references a previous message. */
   context?: WebhookMessageContext;
+  /** Click to WhatsApp ad attribution, only present when sent via an ad. */
+  referral?: WebhookMessageReferral;
+  /** Errors Meta attached to the message, e.g. on `unsupported` messages. */
+  errors?: WebhookMessageError[];
 }
 
 /** A text message. */
@@ -92,6 +139,13 @@ export interface IncomingMediaObject {
   filename?: string;
   /** Whether an audio message is a voice note (audio). */
   voice?: boolean;
+  /**
+   * Direct media URL. Meta is rolling this property out gradually, so it may be
+   * absent. Downloading it still requires your access token.
+   */
+  url?: string;
+  /** Whether a sticker is animated (sticker). */
+  animated?: boolean;
 }
 
 /** An image message. */
@@ -132,6 +186,8 @@ export interface LocationIncomingMessage extends IncomingMessageBase {
     longitude: number;
     name?: string;
     address?: string;
+    /** The location URL, usually only present for business locations. */
+    url?: string;
   };
 }
 
@@ -155,7 +211,10 @@ export interface ContactsIncomingMessage extends IncomingMessageBase {
  * during webhook parsing (callers can `JSON.parse` it).
  */
 export interface InteractiveNfmReply {
-  /** The flow name, e.g. `address_message`. */
+  /**
+   * The kind of native-flow response: `flow` for a Flow response, or
+   * `address_message` for an address message submission.
+   */
   name: string;
   /** The submitted field values as a raw JSON string (not auto-parsed). */
   response_json: string;
@@ -195,7 +254,11 @@ export interface ReactionIncomingMessage extends IncomingMessageBase {
   reaction: {
     /** WAMID of the message being reacted to. */
     message_id: string;
-    /** The emoji applied; an empty string indicates a removed reaction. */
+    /**
+     * The emoji applied. Meta omits this property when the user removes a
+     * reaction, so check it at runtime. It stays typed `string` so existing
+     * readers keep compiling; a future major version may make it optional.
+     */
     emoji: string;
   };
 }
@@ -275,6 +338,8 @@ export interface WebhookMessageError {
   message?: string;
   /** Additional structured context about the error. */
   error_data?: { details?: string };
+  /** Link to the error code documentation. */
+  href?: string;
 }
 
 /** A message status (delivery receipt) update. */
@@ -282,7 +347,7 @@ export interface MessageStatus {
   /** WAMID of the message this status refers to. */
   id: string;
   /** The lifecycle state reported for the message. */
-  status: 'sent' | 'delivered' | 'read' | 'failed' | 'deleted' | 'warning';
+  status: 'sent' | 'delivered' | 'read' | 'played' | 'failed' | 'deleted' | 'warning';
   /** Unix epoch seconds (as a string) when the status was produced. */
   timestamp: string;
   /**
@@ -294,6 +359,14 @@ export interface MessageStatus {
   recipient_user_id?: string;
   /** The recipient's parent BSUID, only present when parent BSUIDs are enabled. */
   recipient_parent_user_id?: string;
+  /** `group` when the message was sent to a group. */
+  recipient_type?: string;
+  /** The phone number of the group participant, when sent to a group. */
+  recipient_participant_id?: string;
+  /** Identity key hash, only present when the identity change check is enabled. */
+  recipient_identity_key_hash?: string;
+  /** The `biz_opaque_callback_data` value set when the message was sent. */
+  biz_opaque_callback_data?: string;
   /** Conversation/pricing context, when provided by Meta. */
   conversation?: {
     id: string;
@@ -304,7 +377,11 @@ export interface MessageStatus {
   pricing?: {
     billable?: boolean;
     pricing_model?: string;
+    /** Pricing type, e.g. `regular`, `free_customer_service` or `free_entry_point`. */
+    type?: string;
     category?: string;
+    /** Why a service message is free, e.g. `free_tier` or `paid_exempt`. */
+    subtype?: string;
   };
   /** Errors attached to a `failed`/`warning` status. */
   errors?: WebhookMessageError[];
@@ -342,6 +419,8 @@ export interface WebhookChange {
 export interface WebhookEntry {
   /** The WhatsApp Business Account (WABA) ID. */
   id: string;
+  /** Unix epoch seconds of the change, when Meta includes it. */
+  time?: number;
   /** The changes carried by this entry. */
   changes: WebhookChange[];
 }
@@ -354,12 +433,37 @@ export interface WebhookPayload {
   entry: WebhookEntry[];
 }
 
+/**
+ * A raw webhook request body: a string, a `Uint8Array` (which includes Node's
+ * `Buffer`) or an `ArrayBuffer`. Always pass the exact bytes received, never a
+ * re-serialized parsed object.
+ */
+export type WebhookRawBody = string | Uint8Array | ArrayBuffer;
+
 /** Configuration for {@link WebhookHandler}. */
 export interface WebhookHandlerConfig {
   /** App Secret used to verify the `X-Hub-Signature-256` header. */
   appSecret?: string;
   /** Verify token used during the GET verification handshake. */
   verifyToken?: string;
+  /**
+   * Maximum accepted raw body size in bytes for {@link WebhookHandler.parse}.
+   * Larger bodies throw `WhatsAppWebhookError` before any hashing or parsing.
+   * Defaults to 3 MiB, Meta's documented maximum payload size. Pass `false` to
+   * disable the check.
+   */
+  maxBodyBytes?: number | false;
+}
+
+/** Options for {@link parseWebhook}. */
+export interface ParseWebhookOptions {
+  /**
+   * Maximum accepted size in bytes for a string or byte body. Larger bodies
+   * throw `WhatsAppWebhookError` before parsing. Defaults to 3 MiB, Meta's
+   * documented maximum payload size. Pass `false` to disable the check. It does
+   * not apply to an already parsed object.
+   */
+  maxBodyBytes?: number | false;
 }
 
 /** The result of parsing a verified webhook delivery. */

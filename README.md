@@ -325,9 +325,15 @@ Three secrets are involved, and they are not interchangeable:
 
 `WebhookHandler` binds the secrets once. `handler.handleVerification(query)` answers the handshake, and `handler.parse(rawBody, signature)` verifies the signature and parses the payload, throwing `WhatsAppWebhookError` when the signature is missing or invalid.
 
+Signature checking is on only when you pass `appSecret`. If you leave the `appSecret` key out, `parse` accepts unsigned bodies, so only do that when something else authenticates the request. If you pass `appSecret` or `verifyToken` with an `undefined` or empty value (for example an unset environment variable), the constructor throws a `WhatsAppWebhookError` instead of quietly turning verification off. `verifySignature` returns `false`, and the verify-token handshake returns `403`, whenever the configured secret is empty.
+
+`handler.parse` rejects bodies over 3 MiB (Meta's documented maximum) before hashing or parsing them. Raise the limit with `new WebhookHandler({ maxBodyBytes })`, or pass `false` to turn it off.
+
 ### Webhooks: raw body
 
-The signature is computed over the exact bytes Meta sent. If your framework parses the JSON first and you re-serialize it, the bytes change and a valid signature fails. Read the body as raw text or a `Buffer`.
+The signature is computed over the exact bytes Meta sent. Pass the **raw body bytes** to `parse`, `isValid` and `verifySignature`: a `Buffer`, `Uint8Array`, `ArrayBuffer` or the unmodified body string. Never pass a re-serialized `req.body` (for example `JSON.stringify(req.body)`), because the bytes change and a valid signature fails.
+
+Respond only after the payload parsed. Return `401` for a bad signature, and `200` for a signed payload that cannot be parsed (log it), so Meta does not retry a permanently bad payload for days.
 
 Express:
 
@@ -352,16 +358,24 @@ app.get('/webhook', (req, res) => {
 
 // express.raw keeps the body as a Buffer. Do not put express.json() before this route.
 app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  const rawBody = req.body as Buffer;
+  const signature = req.get('x-hub-signature-256');
+  if (!handler.isValid(rawBody, signature)) {
+    res.sendStatus(401); // bad signature
+    return;
+  }
   try {
-    const { messages, statuses } = handler.parse(
-      req.body as Buffer,
-      req.get('x-hub-signature-256'),
-    );
+    const { messages, statuses } = handler.parse(rawBody, signature);
     res.sendStatus(200);
-    // handle messages and statuses here
+    // handle messages and statuses here, without letting one failure drop the rest
   } catch (error) {
-    if (error instanceof WhatsAppWebhookError) return void res.sendStatus(401);
-    throw error;
+    if (error instanceof WhatsAppWebhookError) {
+      console.error('Ignoring malformed webhook payload:', error.message);
+      res.sendStatus(200); // signed but unparseable: do not make Meta retry it
+      return;
+    }
+    console.error(error);
+    res.sendStatus(500);
   }
 });
 ```
@@ -380,18 +394,31 @@ export async function GET(request: Request) {
   const query: Record<string, string | undefined> = {};
   for (const [key, value] of new URL(request.url).searchParams) query[key] = value;
   const { statusCode, body } = handler.handleVerification(query);
-  return new Response(body, { status: statusCode });
+  return new Response(body, { status: statusCode, headers: { 'content-type': 'text/plain' } });
 }
 
 export async function POST(request: Request) {
-  const rawBody = await request.text(); // not request.json()
+  const rawBody = await request.arrayBuffer(); // not request.json()
+  const signature = request.headers.get('x-hub-signature-256') ?? undefined;
+  if (!handler.isValid(rawBody, signature)) {
+    return new Response('Unauthorized', { status: 401 });
+  }
   try {
-    const { messages } = handler.parse(rawBody, request.headers.get('x-hub-signature-256') ?? '');
-    // await your handling here: serverless functions can stop after the response
+    const { messages } = handler.parse(rawBody, signature);
+    // Serverless functions can stop after the response, so await the work. Settle
+    // every message on its own so one failure does not drop the batch.
+    const results = await Promise.allSettled(messages.map((message) => handleMessage(message)));
+    for (const result of results) {
+      if (result.status === 'rejected') console.error(result.reason);
+    }
     return new Response('OK');
   } catch (error) {
-    if (error instanceof WhatsAppWebhookError) return new Response('Unauthorized', { status: 401 });
-    throw error;
+    if (error instanceof WhatsAppWebhookError) {
+      console.error('Ignoring malformed webhook payload:', error.message);
+      return new Response('OK'); // signed but unparseable: do not make Meta retry it
+    }
+    console.error(error);
+    return new Response('Internal Server Error', { status: 500 });
   }
 }
 ```
@@ -424,6 +451,8 @@ for (const status of extractStatuses(payload)) {
 ```
 
 Return `200` fast and do the work afterwards. Meta retries deliveries, so deduplicate on the message id (`wamid`).
+
+`extractMessages`, `extractStatuses` and `parse` read the `messages` webhook field only. Other fields, such as `calls`, `message_template_status_update` or `account_update`, are not parsed into `messages` or `statuses`. Their payload is still available in `parsed.raw`.
 
 ## More documentation
 

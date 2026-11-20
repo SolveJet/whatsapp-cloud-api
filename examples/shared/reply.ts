@@ -30,3 +30,15 @@ export async function echoText(message: IncomingMessage): Promise<void> {
   if (to === undefined) return;
   await client.messages.sendText(to, `You said: ${message.text.body}`);
 }
+
+/**
+ * Handles every message in a delivery independently: one failure is logged and
+ * does not stop the rest. Never rejects, so callers may `await` it (serverless)
+ * or call it without awaiting (long-running servers).
+ */
+export async function processMessages(messages: IncomingMessage[]): Promise<void> {
+  const results = await Promise.allSettled(messages.map((message) => echoText(message)));
+  for (const result of results) {
+    if (result.status === 'rejected') console.error('Failed to handle message:', result.reason);
+  }
+}

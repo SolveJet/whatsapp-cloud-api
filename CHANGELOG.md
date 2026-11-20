@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-20
+
+### Security
+
+- Webhook verification now fails closed on a bad secret. `verifySignature` returns `false` (it never throws) when the app secret is not a non-empty string, so an empty key can no longer validate a signature. `verifyWebhook` and `verifyWebhookQuery` return `403` when the expected verify token is empty or not a string.
+- The `WebhookHandler` constructor throws `WhatsAppWebhookError` when `appSecret` or `verifyToken` is present but `undefined`, empty or not a string, so an unset environment variable no longer silently disables verification. Omitting the `appSecret` key entirely still means no signature enforcement, as documented.
+- The JSON `SyntaxError` is no longer attached as `cause` on "not valid JSON" errors, because its message embeds a fragment of the request body.
+- `WebhookHandler.parse` and `parseWebhook` reject string and byte bodies larger than 3 MiB (Meta's documented maximum) before parsing. Configure it with the new `maxBodyBytes` option (`WebhookHandlerConfig.maxBodyBytes`, `ParseWebhookOptions.maxBodyBytes`); `false` disables the check.
+
+### Fixed
+
+- Trailing slashes of `baseUrl` are now trimmed in linear time instead of with a backtracking regular expression.
+
+- `extractMessages` and `extractStatuses` no longer throw `RangeError` on arrays of about 125,000 or more elements, skip non-object elements of `messages` and `statuses`, and treat non-array `changes` and non-object `entry` items as empty instead of throwing a `TypeError`.
+- Byte bodies are decoded with `TextDecoder` (`ignoreBOM`). A plain `Uint8Array` body previously decoded to a comma-separated list of numbers and failed with "not valid JSON".
+- `verifySignature` returns `false` instead of throwing for an unsupported body type such as `null`, a number or an `ArrayBuffer`, which used to throw a `TypeError` (an `ArrayBuffer` is now supported).
+- The README and the Express, Next.js, Hono and Fastify examples now parse before responding, send `text/plain` for the verification challenge, return `401` only for a bad signature and `200` (logged) for a signed payload that cannot be parsed, and the Next.js example no longer blocks on awaiting every message in turn.
+- `InteractiveNfmReply.name` documents `flow` for Flows responses and `address_message` for address messages.
+
+### Changed
+
+- **Behavior change:** `extractMessages` and `extractStatuses` (and so `WebhookHandler.parse`) now only read changes whose `field` is `messages`, or whose `field` is not a string. Call status events from the `calls` field (`RINGING`, `ACCEPTED`, `REJECTED`) are no longer returned as `MessageStatus`, and a `messages` array under another field is ignored. Read those payloads from `parsed.raw`.
+- `WebhookHandler.isValid`, `verifyOrThrow`, `parse`, `verifySignature` and `parseWebhook` accept `Uint8Array` (including `Buffer`) and `ArrayBuffer` raw bodies in addition to strings. New exported types `WebhookRawBody`, `ParseWebhookOptions` and `WebhookMessageReferral`.
+- Webhook types gain optional fields only: the `played` status, `recipient_type`, `recipient_participant_id`, `recipient_identity_key_hash` and `biz_opaque_callback_data` on statuses, `pricing.type` and `pricing.subtype`, `href` on webhook errors, `time` on entries, `identity_key_hash` on contacts, `forwarded`, `frequently_forwarded` and `referred_product` on message context, a Click to WhatsApp `referral` and `errors` on incoming messages, media `url`, sticker `animated` and `location.url`. `reaction.emoji` stays typed `string` although Meta omits it when a reaction is removed; check it at runtime.
+
 ## [1.3.0] - 2026-11-21
 
 ### Added
@@ -144,7 +169,8 @@ as stable:
 - Interactive button and list headers now accept the structured `InteractiveHeader` type in addition to a plain string (backward compatible).
 - Removed stale "omitted" notes from the contact types now that the full contacts object is modeled.
 
-[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.1.0...v1.2.0
