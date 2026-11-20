@@ -1,8 +1,8 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
     url: https://github.com/SolveJet/whatsapp-cloud-api/security/advisories/new
     about: Please report security vulnerabilities privately, not as public issues.
   - name: Support and questions
     url: https://github.com/SolveJet/whatsapp-cloud-api/blob/master/SUPPORT.md
-    about: Read how to get help. For usage questions, open an issue with the question label.
+    about: Read how to get help. For usage questions, use the Question issue template.
