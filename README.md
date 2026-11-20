@@ -461,6 +461,9 @@ Return `200` fast and do the work afterwards. Meta retries deliveries, so dedupl
 - [Block API](./docs/blocks.md)
 - [Calling](./docs/calling.md)
 - [Error handling](./docs/errors.md)
+- [Migrating from `whatsapp-cloud-api`](./docs/migrating-from-whatsapp-cloud-api.md)
+- [Migrating from Meta's `whatsapp` package](./docs/migrating-from-meta-whatsapp-sdk.md)
+- [All documentation](./docs/README.md)
 - [Examples](./examples/README.md)
 
 ## FAQ
