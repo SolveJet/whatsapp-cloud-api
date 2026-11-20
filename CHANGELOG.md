@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-21
+
+### Added
+
+- Business-scoped user ID (BSUID) and username support. Webhook types gain optional `user_id`, `parent_user_id` and `profile.username` on contacts, `from_user_id`, `from_parent_user_id` and `group_id` on incoming messages, `recipient_user_id` and `recipient_parent_user_id` on statuses, and a `system` message type (`SystemIncomingMessage`) for phone number and BSUID changes.
+- Every message sender accepts a `{ bsuid }` recipient (`BsuidRecipient`, `MessageRecipient`). It is sent as `recipient` with `to` omitted. Phone-number strings work as before. `SendMessageResponse.contacts[]` gains optional `user_id` and `parent_user_id`.
+- `client.messages.sendRaw(body, options?)` posts an arbitrary body to `{phoneNumberId}/messages`, adds `messaging_product: 'whatsapp'` when absent, and takes an optional `phoneNumberId` (`SendRawOptions`) and a response type parameter.
+- `examples/` with Express, Next.js App Router, Hono and Fastify webhook servers and a send script. Each answers the verify-token handshake and verifies the signature against the raw body.
+- README sections for the quickstart, comparison with alternatives, raw-body webhook troubleshooting, BSUIDs, `sendRaw` and runtime support. Template, Flows, Block, Calling and error-handling reference moved to `docs/`.
+
+### Changed
+
+- The default Graph API version is now `v26.0` (was `v23.0`). `apiVersion` is still configurable.
+- Package description rewritten.
+
+### Removed
+
+- The Python and Rust ports line from the README roadmap.
+
 ## [1.2.1] - 2026-10-09
 
 ### Changed
@@ -125,7 +144,8 @@ as stable:
 - Interactive button and list headers now accept the structured `InteractiveHeader` type in addition to a plain string (backward compatible).
 - Removed stale "omitted" notes from the contact types now that the full contacts object is modeled.
 
-[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.0.1...v1.1.0
