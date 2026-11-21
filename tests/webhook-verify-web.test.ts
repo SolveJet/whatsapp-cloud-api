@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { verifySignatureAsync } from '../src/resources/webhook-verify-web.js';
 import { verifySignature } from '../src/resources/webhooks.js';
 
@@ -69,5 +69,16 @@ describe('verifySignatureAsync', () => {
       expect(await verifySignatureAsync(body, sign(body, secret), secret)).toBe(true);
     }
     expect(await verifySignatureAsync(body, goodHeader, 'secret')).toBe(true);
+  });
+  it('returns false when the key cannot be imported and retries on the next call', async () => {
+    const spy = vi
+      .spyOn(globalThis.crypto.subtle, 'importKey')
+      .mockRejectedValueOnce(new Error('import failed'));
+    try {
+      expect(await verifySignatureAsync(body, sign(body, 'retry-me'), 'retry-me')).toBe(false);
+      expect(await verifySignatureAsync(body, sign(body, 'retry-me'), 'retry-me')).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

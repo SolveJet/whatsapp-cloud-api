@@ -246,6 +246,22 @@ describe('status matrix', () => {
     expect((await handler.handleRequest(request)).status).toBe(413);
     expect(pulls).toBeLessThan(10);
   });
+  it('answers 413 even when cancelling the oversized stream fails', async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(new Uint8Array(2048));
+      },
+      cancel() {
+        throw new Error('cancel failed');
+      },
+    });
+    const request = new Request('https://example.com/webhook', {
+      method: 'POST',
+      body: stream,
+      duplex: 'half',
+    } as RequestInit);
+    expect((await handler.handleRequest(request)).status).toBe(413);
+  });
 });
 
 describe('GET handshake and methods', () => {
