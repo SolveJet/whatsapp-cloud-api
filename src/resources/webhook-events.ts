@@ -29,6 +29,8 @@ import { isRecord, parseWebhook } from './webhook-core.js';
 
 const FLOW_EVENTS = [
   'FLOW_STATUS_CHANGE',
+  'CLIENT_ERROR_RATE',
+  'FLOW_VERSION_EXPIRY_WARNING',
   'ENDPOINT_ERROR_RATE',
   'ENDPOINT_LATENCY',
   'ENDPOINT_AVAILABILITY',

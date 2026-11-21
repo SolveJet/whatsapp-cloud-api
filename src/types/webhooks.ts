@@ -234,10 +234,22 @@ export interface InteractiveIncomingMessage extends IncomingMessageBase {
     list_reply?: { id: string; title: string; description?: string };
     /** Present when `type` is `nfm_reply` (e.g. an address-message submission). */
     nfm_reply?: InteractiveNfmReply;
-    /** Present when `type` is `product`, a reply to a product or product list message. */
-    product_reply?: Record<string, unknown>;
+    /** Present when `type` is `product`, a reply about a product from a product message. */
+    product?: {
+      retailer_id: string;
+      title?: string;
+      description?: string;
+      currency_code?: string;
+      price_amount?: number | string;
+      sale_price_amount?: number | string;
+      url?: string;
+    };
     /** Present when `type` is `call_permission_reply`, the user's answer to a call permission request. */
-    call_permission_reply?: Record<string, unknown>;
+    call_permission_reply?: {
+      response: string;
+      expiration_timestamp?: number | string;
+      response_source?: string;
+    };
   };
 }
 

@@ -51,8 +51,14 @@ export interface CallRecord {
   direction?: string;
   /** Unix epoch seconds as a string. */
   timestamp?: string;
-  /** Final status of a terminated call, e.g. `COMPLETED` or `FAILED`. */
+  /** Final status of a terminated call: `COMPLETED` or `FAILED`. */
   status?: string;
+  /** Unix epoch seconds as a string. Only present when the call was picked up. */
+  start_time?: string;
+  /** Unix epoch seconds as a string. Only present when the call was picked up. */
+  end_time?: string;
+  /** Echo of the `biz_opaque_callback_data` passed when the call was placed or accepted. */
+  biz_opaque_callback_data?: string;
   /** Call duration in seconds, on `terminate`. */
   duration?: number;
   [key: string]: unknown;
@@ -77,7 +83,12 @@ export type CallWebhookEvent =
 
 /** The `event` values Meta sends on the `flows` field. */
 export type FlowEventName =
-  'FLOW_STATUS_CHANGE' | 'ENDPOINT_ERROR_RATE' | 'ENDPOINT_LATENCY' | 'ENDPOINT_AVAILABILITY';
+  | 'FLOW_STATUS_CHANGE'
+  | 'CLIENT_ERROR_RATE'
+  | 'ENDPOINT_ERROR_RATE'
+  | 'ENDPOINT_LATENCY'
+  | 'ENDPOINT_AVAILABILITY'
+  | 'FLOW_VERSION_EXPIRY_WARNING';
 
 /** A value from the `flows` field. */
 export interface FlowValue {
@@ -85,15 +96,27 @@ export interface FlowValue {
   /** Human-readable description. */
   message?: string;
   flow_id?: string;
+  /** Previous status, on `FLOW_STATUS_CHANGE`. Absent when the Flow was just created. */
+  old_status?: string;
+  /** New status, on `FLOW_STATUS_CHANGE`. */
+  new_status?: string;
+  /** `ACTIVATED` or `DEACTIVATED`, on the alert events. */
+  alert_state?: string;
+  /** The alert threshold that was reached or recovered from. */
+  threshold?: number;
+  /** Version freeze warning text, on `FLOW_VERSION_EXPIRY_WARNING`. */
+  warning?: string;
   [key: string]: unknown;
 }
 
 /** A Flow event from the `flows` field. */
 export type FlowWebhookEvent =
   | { kind: 'FLOW_STATUS_CHANGE'; value: FlowValue }
+  | { kind: 'CLIENT_ERROR_RATE'; value: FlowValue }
   | { kind: 'ENDPOINT_ERROR_RATE'; value: FlowValue }
   | { kind: 'ENDPOINT_LATENCY'; value: FlowValue }
   | { kind: 'ENDPOINT_AVAILABILITY'; value: FlowValue }
+  | { kind: 'FLOW_VERSION_EXPIRY_WARNING'; value: FlowValue }
   | UnknownEventPayload;
 
 /** A template-related change value. The exact keys depend on the field. */
@@ -128,6 +151,12 @@ export type AccountWebhookEvent =
 /** One element of `value.groups[]`. */
 export interface GroupValue {
   group_id?: string;
+  /** The change type, e.g. `group_create` or `group_participants_add`. */
+  type?: string;
+  /** Unix epoch seconds as a string. */
+  timestamp?: string;
+  /** The ID of the API request that caused the change, when there was one. */
+  request_id?: string;
   [key: string]: unknown;
 }
 

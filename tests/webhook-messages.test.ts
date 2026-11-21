@@ -2,7 +2,8 @@
  * One fixture per inbound message type added in 1.4.0. Field names follow the
  * message pages under
  * https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/messages/
- * (order, unsupported, edit, revoke, interactive).
+ * (order, unsupported, edit, revoke, interactive) and, for `call_permission_reply`,
+ * https://developers.facebook.com/documentation/business-messaging/whatsapp/business-scoped-user-ids
  */
 import { describe, expect, it } from 'vitest';
 import { isKnownMessage } from '../src/resources/webhook-helpers.js';
@@ -58,7 +59,7 @@ describe('new inbound message types', () => {
           catalog_id: 'CAT1',
           text: 'please',
           product_items: [
-            { product_retailer_id: 'SKU1', quantity: 2, item_price: 10.5, currency: 'USD' },
+            { product_retailer_id: 'di9ozbzfi4', quantity: 2, item_price: 7.99, currency: 'USD' },
           ],
         },
       },
@@ -68,8 +69,15 @@ describe('new inbound message types', () => {
       message: {
         ...base,
         type: 'unsupported',
-        unsupported: { type: 'poll' },
-        errors: [{ code: 131051, title: 'Unsupported message type' }],
+        unsupported: { type: 'poll_update' },
+        errors: [
+          {
+            code: 131051,
+            title: 'Message type unknown',
+            message: 'Message type unknown',
+            error_data: { details: 'Message type is currently not supported.' },
+          },
+        ],
       },
       expected: 'unsupported:131051',
     },
@@ -92,7 +100,15 @@ describe('new inbound message types', () => {
       message: {
         ...base,
         type: 'interactive',
-        interactive: { type: 'product', product_reply: { id: 'SKU1' } },
+        interactive: {
+          type: 'product',
+          product: {
+            retailer_id: 'di9ozbzfi4',
+            title: 'Mug',
+            currency_code: 'USD',
+            price_amount: 7.99,
+          },
+        },
       },
       expected: 'interactive:product',
     },
@@ -102,7 +118,11 @@ describe('new inbound message types', () => {
         type: 'interactive',
         interactive: {
           type: 'call_permission_reply',
-          call_permission_reply: { response: 'accept' },
+          call_permission_reply: {
+            response: 'accept',
+            expiration_timestamp: '1750000000',
+            response_source: 'user_action',
+          },
         },
       },
       expected: 'interactive:call_permission_reply',

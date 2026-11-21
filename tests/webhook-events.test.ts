@@ -1,12 +1,18 @@
 /**
- * Fixtures follow the webhook reference pages under
- * https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/
- *   messages/text, messages/status (messages field)
- *   calls (connect, terminate and status events)
- *   flows (FLOW_STATUS_CHANGE and the endpoint alerts)
- *   message_template_status_update, message_template_quality_update, template_category_update
- *   phone_number_quality_update, account_update, account_alerts
- *   group_lifecycle_update, group_participants_update (groups reference)
+ * Fixtures follow the field names and enum values on these pages, all under
+ * https://developers.facebook.com/documentation/business-messaging/whatsapp/
+ *   webhooks/reference/messages/text and messages/status  (messages field)
+ *   calling/user-initiated-calls and calling/business-initiated-calls  (calls: connect, terminate, call status)
+ *   flows/guides/flowswebhooks  (flows)
+ *   webhooks/reference/message_template_status_update
+ *   webhooks/reference/message_template_quality_update
+ *   webhooks/reference/template_category_update
+ *   webhooks/reference/phone_number_quality_update
+ *   webhooks/reference/account_update
+ *   webhooks/reference/account_alerts
+ *   webhooks/reference/user_preferences
+ *   business-scoped-user-ids#business_username_updates-webhook
+ *   groups/webhooks  (group_lifecycle_update, group_participants_update, group_settings_update, group_status_update)
  */
 import { describe, expect, it } from 'vitest';
 import { WhatsAppWebhookError } from '../src/errors.js';
@@ -70,11 +76,29 @@ describe('parseWebhookEvents', () => {
             event: 'connect',
             direction: 'USER_INITIATED',
           },
-          { id: 'wacid.1', event: 'terminate', status: 'COMPLETED', duration: 12 },
+          {
+            id: 'wacid.1',
+            from: '1555',
+            to: '1556',
+            event: 'terminate',
+            direction: 'USER_INITIATED',
+            timestamp: '1749197480',
+            status: 'COMPLETED',
+            start_time: '1671644824',
+            end_time: '1671644944',
+            duration: 120,
+          },
           { id: 'wacid.1', event: 'future' },
         ],
         statuses: [
-          { id: 'wacid.1', type: 'call', status: 'RINGING', timestamp: '1', recipient_id: '1556' },
+          {
+            id: 'wacid.1',
+            type: 'call',
+            status: 'RINGING',
+            timestamp: '1',
+            recipient_id: '1556',
+            biz_opaque_callback_data: 'tag',
+          },
         ],
       }),
     );
@@ -95,12 +119,20 @@ describe('parseWebhookEvents', () => {
   it('emits flow events by event name and falls back for unknown ones', () => {
     const flow = (event: string): string => {
       const [parsed] = parseWebhookEvents(
-        deliver('flows', { event, message: 'm', flow_id: '9', old_status: 'DRAFT' }),
+        deliver('flows', {
+          event,
+          message: 'm',
+          flow_id: '6627390910605886',
+          old_status: 'DRAFT',
+          new_status: 'PUBLISHED',
+        }),
       );
       return parsed?.name === 'flow' ? parsed.event.kind : 'not-flow';
     };
     expect(flow('FLOW_STATUS_CHANGE')).toBe('FLOW_STATUS_CHANGE');
+    expect(flow('CLIENT_ERROR_RATE')).toBe('CLIENT_ERROR_RATE');
     expect(flow('ENDPOINT_ERROR_RATE')).toBe('ENDPOINT_ERROR_RATE');
+    expect(flow('FLOW_VERSION_EXPIRY_WARNING')).toBe('FLOW_VERSION_EXPIRY_WARNING');
     expect(flow('ENDPOINT_LATENCY')).toBe('ENDPOINT_LATENCY');
     expect(flow('ENDPOINT_AVAILABILITY')).toBe('ENDPOINT_AVAILABILITY');
     expect(flow('SOMETHING_NEW')).toBe('unknown');
@@ -108,9 +140,37 @@ describe('parseWebhookEvents', () => {
 
   it('emits template events for the three template fields', () => {
     const fields = [
-      ['message_template_status_update', { event: 'APPROVED', message_template_id: 1 }],
-      ['message_template_quality_update', { new_quality_score: 'GREEN', message_template_id: 1 }],
-      ['template_category_update', { new_category: 'UTILITY', message_template_id: 1 }],
+      [
+        'message_template_status_update',
+        {
+          event: 'APPROVED',
+          message_template_id: 1689556908129832,
+          message_template_name: 'order_confirmation',
+          message_template_language: 'en-US',
+          reason: 'NONE',
+          message_template_category: 'UTILITY',
+        },
+      ],
+      [
+        'message_template_quality_update',
+        {
+          previous_quality_score: 'GREEN',
+          new_quality_score: 'YELLOW',
+          message_template_id: 806312974732579,
+          message_template_name: 'welcome_template',
+          message_template_language: 'en-US',
+        },
+      ],
+      [
+        'template_category_update',
+        {
+          message_template_id: 278077987957091,
+          message_template_name: 'welcome_template',
+          message_template_language: 'en-US',
+          previous_category: 'UTILITY',
+          new_category: 'MARKETING',
+        },
+      ],
     ] as const;
     for (const [field, value] of fields) {
       const [event] = parseWebhookEvents(deliver(field, value));
@@ -119,16 +179,58 @@ describe('parseWebhookEvents', () => {
   });
 
   it('emits account events for account-level fields', () => {
-    const fields = [
-      'phone_number_quality_update',
-      'account_update',
-      'account_alerts',
-      'user_preferences',
-      'business_username_updates',
+    const fields: [string, unknown][] = [
+      [
+        'phone_number_quality_update',
+        {
+          display_phone_number: '15550783881',
+          event: 'THROUGHPUT_UPGRADE',
+          current_limit: 'TIER_UNLIMITED',
+        },
+      ],
+      [
+        'account_update',
+        { event: 'ACCOUNT_VIOLATION', violation_info: { violation_type: 'ADULT' } },
+      ],
+      [
+        'account_alerts',
+        {
+          entity_type: 'BUSINESS',
+          entity_id: '506914307656634',
+          alert_info: {
+            alert_severity: 'WARNING',
+            alert_status: 'ACTIVE',
+            alert_type: 'INCREASED_CAPABILITIES_ELIGIBILITY_DEFERRED',
+            alert_description: 'Limits cannot be increased for your business.',
+          },
+        },
+      ],
+      [
+        'user_preferences',
+        {
+          messaging_product: 'whatsapp',
+          metadata,
+          contacts: [{ wa_id: '16505551234', user_id: 'US.13491208655302741918' }],
+          user_preferences: [
+            {
+              wa_id: '16505551234',
+              user_id: 'US.13491208655302741918',
+              detail: 'User requested to resume marketing messages',
+              category: 'marketing_messages',
+              value: 'resume',
+              timestamp: 1731705721,
+            },
+          ],
+        },
+      ],
+      [
+        'business_username_updates',
+        { display_phone_number: '15550783881', username: 'acme', status: 'approved' },
+      ],
     ];
-    for (const field of fields) {
-      const [event] = parseWebhookEvents(deliver(field, { event: 'X' }));
-      expect(event).toMatchObject({ name: 'account', event: { kind: field } });
+    for (const [field, value] of fields) {
+      const [event] = parseWebhookEvents(deliver(field, value));
+      expect(event).toMatchObject({ name: 'account', event: { kind: field, value } });
     }
   });
 
@@ -136,13 +238,20 @@ describe('parseWebhookEvents', () => {
     const events = parseWebhookEvents(
       deliver('group_participants_update', {
         metadata,
-        groups: [{ group_id: 'g1' }, { group_id: 'g2' }, 7],
+        groups: [
+          { timestamp: '1', group_id: 'g1', type: 'group_participants_add', reason: 'invite_link' },
+          { timestamp: '2', group_id: 'g2', type: 'group_participants_remove' },
+          7,
+        ],
       }),
     );
     expect(events).toHaveLength(2);
     expect(events[1]).toMatchObject({
       name: 'group',
-      event: { kind: 'group_participants_update', value: { group_id: 'g2' } },
+      event: {
+        kind: 'group_participants_update',
+        value: { group_id: 'g2', type: 'group_participants_remove' },
+      },
     });
     const [fallback] = parseWebhookEvents(deliver('group_status_update', { metadata }));
     expect(fallback).toMatchObject({ name: 'group', event: { kind: 'unknown' } });

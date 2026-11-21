@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The `IncomingMessage` union has new members (`order`, `unsupported`, `edit`, `revoke`), and `interactive.type` is wider. Code that checks a `switch` on `message.type` for exhaustiveness with a `never` assignment no longer compiles until it handles the new cases or has a `default` branch.
 - Accepting a webhook body without an `appSecret` now emits a one-time process warning (`WHATSAPP_WEBHOOK_UNSIGNED`, or `console.warn` where `process.emitWarning` is missing). Behaviour is otherwise unchanged. Set `allowUnsigned: true` to silence it.
+- `verifySignature` and `WebhookHandler` now accept an array for the app secret (a widening). Version 1.3.x returned `false` or threw for an array. An empty array, an array with an empty string and an array with no matching secret still fail closed.
 - `package.json` `exports` uses separate `types` conditions for `import` and `require` for every entry point, and adds `./web` and `./testing`.
 
 ### Deprecated
