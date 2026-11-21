@@ -8,12 +8,19 @@ import {
 
 const BASE_URL = 'https://graph.facebook.com/v26.0';
 
-const makeClient = (overrides?: { maxRetries?: number; timeoutMs?: number }): HttpClient =>
+const makeClient = (overrides?: {
+  maxRetries?: number;
+  timeoutMs?: number;
+  retryMessageSends?: boolean;
+}): HttpClient =>
   new HttpClient({
     accessToken: 'secret-token',
     baseUrl: BASE_URL,
     timeoutMs: overrides?.timeoutMs ?? 30000,
     maxRetries: overrides?.maxRetries ?? 2,
+    ...(overrides?.retryMessageSends !== undefined
+      ? { retryMessageSends: overrides.retryMessageSends }
+      : {}),
     // Resolve immediately so backoff never actually sleeps.
     delay: () => Promise.resolve(),
   });
@@ -170,18 +177,108 @@ describe('HttpClient retry policy', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('retries a 500 up to maxRetries then throws', async () => {
+  it('retries a 500 on a non-message POST up to maxRetries then throws', async () => {
     const fetchMock = vi.fn(() => Promise.resolve(jsonResponse(errorEnvelope(1), { status: 500 })));
     vi.stubGlobal('fetch', fetchMock);
-
     await expect(
-      makeClient({ maxRetries: 2 }).request({ method: 'POST', path: 'x/messages', body: {} }),
+      makeClient({ maxRetries: 2 }).request({
+        method: 'POST',
+        path: 'x/message_templates',
+        body: {},
+      }),
     ).rejects.toBeInstanceOf(WhatsAppApiError);
     // 1 initial attempt + 2 retries.
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
+  it('retries a 500 on a GET', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(jsonResponse(errorEnvelope(1), { status: 500 })));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(
+      makeClient().request({ method: 'GET', path: 'x/messages' }),
+    ).rejects.toBeInstanceOf(WhatsAppApiError);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+  it('does not retry a 500 on a message POST by default', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(jsonResponse(errorEnvelope(1), { status: 500 })));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(
+      makeClient().request({ method: 'POST', path: 'x/messages', body: {} }),
+    ).rejects.toBeInstanceOf(WhatsAppApiError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it('does not retry a network error or timeout on a message POST by default', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('network down'));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(
+      makeClient().request({ method: 'POST', path: 'x/messages', body: {} }),
+    ).rejects.toBeInstanceOf(WhatsAppRequestError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it('retries a 429 on a message POST by default', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(errorEnvelope(130429), { status: 429 }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(
+      makeClient().request({ method: 'POST', path: 'x/messages', body: {} }),
+    ).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+  it('does not retry a throttle code that arrives as HTTP 400', async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(jsonResponse(errorEnvelope(130429), { status: 400 })),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(
+      makeClient().request({ method: 'POST', path: 'x/messages', body: {} }),
+    ).rejects.toBeInstanceOf(WhatsAppApiError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it('retries 5xx and network errors on a message POST when retryMessageSends is true', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(errorEnvelope(1), { status: 503 }))
+      .mockRejectedValueOnce(new TypeError('network down'))
+      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(
+      makeClient({ retryMessageSends: true }).request({
+        method: 'POST',
+        path: 'x/messages',
+        body: {},
+      }),
+    ).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+  it('does not retry a caller abort, with or without retryMessageSends', async () => {
+    for (const retryMessageSends of [false, true]) {
+      const fetchMock = vi.fn().mockRejectedValue(new DOMException('aborted', 'AbortError'));
+      vi.stubGlobal('fetch', fetchMock);
+      const controller = new AbortController();
+      controller.abort();
+      await expect(
+        makeClient({ retryMessageSends }).request({
+          method: 'GET',
+          path: 'x',
+          signal: controller.signal,
+        }),
+      ).rejects.toBeInstanceOf(WhatsAppRequestError);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    }
+  });
+  it.each([false, true])(
+    'does not retry a 200 with an unparsable body (retryMessageSends: %s)',
+    async (retryMessageSends) => {
+      const fetchMock = vi.fn(() => Promise.resolve(new Response('<html>', { status: 200 })));
+      vi.stubGlobal('fetch', fetchMock);
+      await expect(
+        makeClient({ retryMessageSends }).request({ method: 'GET', path: 'x' }),
+      ).rejects.toBeInstanceOf(WhatsAppRequestError);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    },
+  );
 });
-
 describe('HttpClient transport failures', () => {
   it('surfaces a network error as WhatsAppRequestError (not a timeout)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network down')));

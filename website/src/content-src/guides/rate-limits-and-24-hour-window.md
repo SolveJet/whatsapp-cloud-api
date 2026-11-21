@@ -26,11 +26,11 @@ If you send a free-form message with the window closed, the API returns error `1
 
 ## How the SDK behaves
 
-The client retries on HTTP `429`, any `5xx`, and network or timeout failures. Defaults are `maxRetries: 2` (three attempts in total) and a 30-second timeout per attempt. When the response has a `Retry-After` header, the SDK waits that long. Otherwise it waits with exponential backoff and jitter, starting at 300 ms and doubling per attempt. Multipart uploads are never retried.
+Reads and non-message requests retry on HTTP `429`, any `5xx`, and network or timeout failures. Message sends (`POST` to `/messages`) retry on `429` only, because a retry after a lost response could deliver the message twice; set `retryMessageSends: true` to retry them on `5xx` and network failures too. Defaults are `maxRetries: 2` (three attempts in total) and a 30-second timeout per attempt. When the response has a `Retry-After` header, the SDK waits that long. Otherwise it waits with exponential backoff and jitter, starting at 300 ms and doubling per attempt. Multipart uploads are never retried.
 
 The error classes help you branch:
 
-- `WhatsAppRateLimitError` is thrown for HTTP 429 and for the codes `130429`, `131056` and `133016`. Its `retryAfterMs` is set when the server sent `Retry-After`. The SDK retries only on the HTTP status, so a rate limit code returned with a status other than 429 or 5xx reaches you without a retry.
+- `WhatsAppRateLimitError` is thrown for HTTP 429 and for the codes `130429`, `131056` and `133016`. Its `retryAfterMs` is set when the server sent `Retry-After`. The SDK retries only on the HTTP status, so a rate limit code returned with a status other than 429 (or 5xx, where retries apply) reaches you without a retry.
 - `WhatsAppReEngagementError` is thrown for code `131047`.
 
 {{include website/snippets/rate-limits-and-window.ts#client}}

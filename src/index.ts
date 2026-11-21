@@ -292,6 +292,18 @@ export interface WhatsAppClientConfig {
   timeoutMs?: number;
   /** Maximum number of retries. Defaults to {@link DEFAULT_MAX_RETRIES}. */
   maxRetries?: number;
+  /**
+   * Retry message sends on `5xx`, network and timeout failures too. Defaults to
+   * `false`: a `POST` to `{phoneNumberId}/messages` (sends, `sendRaw`, mark-as-read
+   * and typing indicators) is retried on HTTP `429` only.
+   *
+   * Meta documents no idempotency key for sends. A `5xx`, timeout or dropped
+   * connection can happen after Meta accepted the message, so with this set to
+   * `true` a retry can deliver the same message twice. Enable it only if you
+   * de-duplicate on your side. Requests aborted through a `signal` and responses
+   * that cannot be parsed are never retried. Other requests keep the standard policy.
+   */
+  retryMessageSends?: boolean;
 }
 
 type ResolvedConfig = Required<
@@ -347,6 +359,7 @@ export class WhatsAppClient {
       baseUrl: this.getBaseUrl(),
       timeoutMs: this.config.timeoutMs,
       maxRetries: this.config.maxRetries,
+      retryMessageSends: config.retryMessageSends ?? false,
     });
   }
 

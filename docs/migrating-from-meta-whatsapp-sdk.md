@@ -320,9 +320,10 @@ await client.messages.sendRaw({
   30). In the 0.0.5-Alpha source that value is read into the config, and we did
   not find code that uses it to retry. Here, `429`, `5xx`, and network errors
   are retried (`maxRetries`, default 2) with backoff, and `Retry-After` is
-  honored. This includes JSON `POST` sends, so a send that failed after Meta
-  accepted it could be repeated. Set `maxRetries: 0` if you prefer to handle
-  retries yourself. Multipart media uploads are not retried.
+  honored. Message sends are the exception: they retry on `429` only, because
+  a send that failed after Meta accepted it could be repeated. Set
+  `retryMessageSends: true` to retry sends on `5xx` and network errors too, or
+  `maxRetries: 0` to handle retries yourself. Multipart media uploads are not retried.
 - **Timeouts.** `whatsapp` defaults to 20,000 ms (`REQUEST_TIMEOUT`). Here it
   is 30,000 ms per attempt (`timeoutMs`).
 - **Webhook signature.** Both check the `X-Hub-Signature-256` HMAC-SHA256 of
