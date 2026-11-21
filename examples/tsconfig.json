@@ -4,7 +4,9 @@
     "rootDir": "..",
     "noEmit": true,
     "paths": {
-      "@solvejet/whatsapp-cloud-api": ["../src/index.ts"]
+      "@solvejet/whatsapp-cloud-api": ["../src/index.ts"],
+      "@solvejet/whatsapp-cloud-api/web": ["../src/web.ts"],
+      "@solvejet/whatsapp-cloud-api/testing": ["../src/testing.ts"]
     }
   },
   "include": ["./**/*.ts"],
