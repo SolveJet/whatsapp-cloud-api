@@ -54,6 +54,7 @@ export default defineConfig({
           items: [
             'getting-started/overview',
             'getting-started/install',
+            'getting-started/send-first-message',
             'getting-started/configuration',
           ],
         },
@@ -61,11 +62,15 @@ export default defineConfig({
           label: 'Guides',
           items: [
             'guides/messaging',
+            'guides/interactive-buttons-and-lists',
             'guides/templates',
+            'guides/send-template-message',
             'guides/media',
+            'guides/upload-download-media',
             'guides/usernames-and-bsuids',
             'guides/raw-sends',
             'guides/errors',
+            'guides/rate-limits-and-24-hour-window',
             'guides/flows',
             'guides/calling',
             'guides/block-api',
@@ -74,7 +79,17 @@ export default defineConfig({
         },
         {
           label: 'Webhooks',
-          items: ['webhooks/overview', 'webhooks/raw-body', 'webhooks/handling-events'],
+          items: [
+            'webhooks/overview',
+            'webhooks/verify-signature',
+            'webhooks/verification-request',
+            'webhooks/raw-body',
+            'webhooks/handling-events',
+            'webhooks/express',
+            'webhooks/nextjs',
+            'webhooks/hono',
+            'webhooks/fastify',
+          ],
         },
         {
           label: 'Migration',

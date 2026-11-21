@@ -360,6 +360,27 @@ if (existsSync(handWrittenRoot)) {
   }
 }
 
+// Every page needs a unique title and a unique, non-empty description (search snippets).
+{
+  const seen = { title: new Map(), description: new Map() };
+  for (const file of listFiles(outRoot)) {
+    if (!/\.mdx?$/.test(file)) continue;
+    const rel = path.relative(outRoot, file);
+    const head = /^---\n([\s\S]*?)\n---/.exec(readFileSync(file, 'utf8'));
+    for (const key of ['title', 'description']) {
+      const m = head && new RegExp(`^${key}:\\s*(.+)$`, 'm').exec(head[1]);
+      const value = m ? m[1].trim().replace(/^(["'])(.*)\1$/, '$2') : '';
+      if (value === '') {
+        fail(`${rel}: missing ${key} in frontmatter.`);
+        continue;
+      }
+      const other = seen[key].get(value);
+      if (other) fail(`${rel}: ${key} duplicates the one in ${other}.`);
+      else seen[key].set(value, rel);
+    }
+  }
+}
+
 if (errors.length > 0) {
   console.error(`sync-content failed with ${errors.length} problem(s):`);
   for (const e of errors) console.error(`  - ${e}`);
