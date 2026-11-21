@@ -1,5 +1,5 @@
 /**
- * Flattens a webhook delivery into typed events. Runtime-neutral: no `node:*`
+ * Flattens a webhook delivery into typed events. Runtime-neutral: no Node-only
  * imports.
  */
 import type {

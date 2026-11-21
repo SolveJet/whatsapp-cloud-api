@@ -1,6 +1,6 @@
 /**
  * Small helpers for working with parsed webhook data. Runtime-neutral: no
- * `node:*` imports.
+ * Node-only imports.
  */
 import type { IncomingMessage, UnknownIncomingMessage } from '../types/webhooks.js';
 

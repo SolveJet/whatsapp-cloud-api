@@ -3,8 +3,9 @@
  * envelope validation, message and status extraction, and the one-time warning
  * for unsigned deliveries.
  *
- * This module imports nothing from `node:*` and does not use `Buffer`, so it
- * is safe to bundle for Deno, Bun, Cloudflare Workers and other web runtimes.
+ * This module has no Node-only imports and relies only on web-standard
+ * globals, so it is safe to bundle for Deno, Bun, Cloudflare Workers and other
+ * web runtimes.
  */
 import { WhatsAppWebhookError } from '../errors.js';
 import type {
@@ -23,7 +24,7 @@ export const isRecord = (value: unknown): value is Record<string, unknown> =>
 export const isNonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value.length > 0;
 
-/** Cross-realm safe `Uint8Array` check (also true for Node's `Buffer`). */
+/** Cross-realm safe `Uint8Array` check (also true for Node byte buffers). */
 const isUint8Array = (value: unknown): value is Uint8Array =>
   ArrayBuffer.isView(value) && Object.prototype.toString.call(value) === '[object Uint8Array]';
 
@@ -112,7 +113,7 @@ export const assertBodySize = (body: unknown, limit: number | false): void => {
  * Meta's documented maximum) are rejected before parsing.
  *
  * @param body - A parsed webhook object, or its JSON as a string, `Uint8Array`
- *   (including `Buffer`) or `ArrayBuffer`. Byte bodies are decoded as UTF-8.
+ *   (including Node byte buffers) or `ArrayBuffer`. Byte bodies are decoded as UTF-8.
  * @param options - Optional size limit override.
  * @throws {@link WhatsAppWebhookError} when the body is unparseable or malformed.
  */

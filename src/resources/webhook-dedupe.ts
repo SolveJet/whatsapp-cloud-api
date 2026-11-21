@@ -1,6 +1,6 @@
 /**
  * Duplicate-delivery tracking for webhook handlers. Runtime-neutral: no
- * `node:*` imports.
+ * Node-only imports.
  */
 import { WhatsAppWebhookError } from '../errors.js';
 

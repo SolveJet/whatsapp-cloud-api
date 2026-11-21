@@ -1,6 +1,6 @@
 /**
  * `X-Hub-Signature-256` verification built on Web Crypto, for runtimes without
- * `node:crypto` (Cloudflare Workers, Deno, Bun, browsers' workers). Uses only
+ * Node's crypto module (Cloudflare Workers, Deno, Bun, browsers' workers). Uses only
  * `globalThis.crypto`, `TextEncoder` and standard globals.
  */
 import { isNonEmptyString, toHashable } from './webhook-core.js';
