@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://solvejet.github.io/whatsapp-cloud-api/sitemap-index.xml

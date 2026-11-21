@@ -28,3 +28,8 @@ Thumbs.db
 .worktrees/
 # Local design assets such as the GitHub social preview; not shipped
 docs/assets/
+# Documentation site: dependencies, build output and generated content
+website/node_modules/
+website/dist/
+website/.astro/
+website/src/content/docs/

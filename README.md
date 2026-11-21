@@ -26,6 +26,8 @@ const res = await client.messages.sendText('15551234567', 'Hello from the SDK');
 console.log(res.messages[0]?.id); // the WhatsApp message ID (WAMID)
 ```
 
+Full documentation: [solvejet.github.io/whatsapp-cloud-api](https://solvejet.github.io/whatsapp-cloud-api/).
+
 Runnable webhook servers for Express, Next.js, Hono and Fastify are in [`examples/`](./examples/README.md). Requires Node.js 20 or newer. Run `npm audit signatures` after installing to check the package against its source build.
 
 > **Not affiliated with Meta.** This is an independent, open-source client for Meta's WhatsApp Cloud API. It is not endorsed by Meta or WhatsApp.

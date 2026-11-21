@@ -48,6 +48,22 @@ pnpm run test
 pnpm run build
 ```
 
+## Documentation site
+
+The site in `website/` is an Astro Starlight project with its own `package.json` and lockfile. It needs Node.js 22.23.4 or newer.
+
+```sh
+corepack enable
+pnpm install --frozen-lockfile              # root dependencies (used by the snippet typecheck)
+pnpm --dir website install --frozen-lockfile
+pnpm --dir website run dev                  # local dev server
+pnpm --dir website run build                # full build, fails on dead links
+pnpm --dir website exec astro preview       # serve the built site
+pnpm exec tsc -p website/tsconfig.snippets.json   # typecheck the site's code snippets
+```
+
+`website/src/content/docs/` is generated and not committed. Edit `README.md`, `docs/*.md` or the hand-written pages in `website/src/content-src/` instead. Code samples on hand-written pages live in `website/snippets/` so that they are typechecked. See `website/README.md` for details.
+
 ## Commit & PR conventions
 
 - Follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages (e.g. `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`).
