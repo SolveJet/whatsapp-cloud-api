@@ -497,7 +497,7 @@ export interface WebhookPayload {
 
 /**
  * A raw webhook request body: a string, a `Uint8Array` (which includes Node's
- * `Buffer`) or an `ArrayBuffer`. Always pass the exact bytes received, never a
+ * byte buffers) or an `ArrayBuffer`. Always pass the exact bytes received, never a
  * re-serialized parsed object.
  */
 export type WebhookRawBody = string | Uint8Array | ArrayBuffer;
@@ -546,4 +546,12 @@ export interface ParsedWebhook {
   statuses: MessageStatus[];
   /** The full validated payload. */
   raw: WebhookPayload;
+}
+
+/** Result of the GET verification handshake. */
+export interface WebhookVerificationResult {
+  /** HTTP status code to return: `200` on success, `403` otherwise. */
+  statusCode: number;
+  /** Response body: the raw challenge on success, otherwise `Forbidden`. */
+  body: string;
 }

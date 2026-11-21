@@ -14,7 +14,12 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { WhatsAppWebhookError } from '../errors.js';
-import type { ParsedWebhook, WebhookHandlerConfig, WebhookRawBody } from '../types/webhooks.js';
+import type {
+  ParsedWebhook,
+  WebhookHandlerConfig,
+  WebhookRawBody,
+  WebhookVerificationResult,
+} from '../types/webhooks.js';
 import {
   assertBodySize,
   decodeBody,
@@ -31,13 +36,7 @@ import {
 
 export { extractMessages, extractStatuses, isMessageEvent, isStatusEvent, parseWebhook };
 
-/** Result of the GET verification handshake. */
-export interface WebhookVerificationResult {
-  /** HTTP status code to return: `200` on success, `403` otherwise. */
-  statusCode: number;
-  /** Response body: the raw challenge on success, otherwise `Forbidden`. */
-  body: string;
-}
+export type { WebhookVerificationResult };
 
 /** Prefix Meta uses on the `X-Hub-Signature-256` header value. */
 const SIGNATURE_PREFIX = 'sha256=';
