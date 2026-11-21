@@ -1,6 +1,6 @@
 /**
  * Web-runtime entry point: the webhook handler and parsers without any Node-only
- * dependency. Works on Cloudflare Workers, Deno, Bun, Vercel Edge and Node 20+.
+ * dependency. Works on Cloudflare Workers, Deno, Bun and Node 20+.
  * Signatures are verified with Web Crypto.
  */
 import {
