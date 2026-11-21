@@ -15,7 +15,18 @@ export const readmePages = [
     title: 'Overview',
     description:
       'Why use this zero-dependency TypeScript SDK for the WhatsApp Cloud API, and how it compares with other Node.js libraries.',
-    headings: [{ text: 'Why this library' }, { text: 'How it compares' }],
+    headings: [
+      { text: 'Why this library' },
+      { text: 'How it compares' },
+      { text: 'When to use this package' },
+    ],
+  },
+  {
+    route: 'getting-started/ai-assistants',
+    title: 'Using with AI coding assistants',
+    description:
+      'Context7 library ID, DeepWiki and llms.txt links for coding assistants that use the WhatsApp Cloud API SDK.',
+    headings: [{ text: 'Using with AI coding assistants' }],
   },
   {
     route: 'getting-started/install',

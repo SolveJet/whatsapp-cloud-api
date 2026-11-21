@@ -3,7 +3,7 @@
   "url": "https://context7.com/solvejet/whatsapp-cloud-api",
   "public_key": "pk_DjerGZ5xYfK37vhHRnLL4",
   "projectTitle": "@solvejet/whatsapp-cloud-api",
-  "description": "TypeScript SDK for Meta's WhatsApp Cloud API (Graph API v26.0): send text, media, template, interactive and Flow messages, manage media and templates, and verify and parse webhooks. Zero runtime dependencies, Node.js 20+.",
+  "description": "TypeScript SDK for Meta's WhatsApp Cloud API (Graph API v26.0): send text, media, template, interactive and Flow messages, manage media and templates, and receive webhooks with signature checks. Zero runtime dependencies. Node.js 20+, Bun, Deno, Cloudflare Workers.",
   "excludeFiles": ["CHANGELOG.md", "CODE_OF_CONDUCT.md", "LICENSE"],
   "rules": [
     "Install with `npm install @solvejet/whatsapp-cloud-api`. Use the scoped name. The unscoped `whatsapp-cloud-api` and Meta's `whatsapp` are different packages and both are archived.",
@@ -17,6 +17,17 @@
     "`sendTemplate(to, { name, language: { code: 'en_US' }, components })` needs a template already approved by Meta. Create and list templates with `client.templates`. Never invent template names or parameters.",
     "The SDK already retries 429, 5xx and network errors (default 2 retries, backoff). Do not wrap calls in your own retry loop. Branch on `WhatsAppRateLimitError`, `WhatsAppAuthenticationError` and `WhatsAppApiError`.",
     "For message bodies the SDK does not model use `client.messages.sendRaw`. Do not hand-write `fetch` calls to graph.facebook.com when a `client.*` method exists.",
-    "Recipients are phone number strings in international format, as in '15551234567'. For users reachable only by username pass `{ bsuid: '...' }`."
+    "Recipients are phone number strings in international format, as in '15551234567'. For users reachable only by username pass `{ bsuid: '...' }`.",
+    "For incoming webhooks prefer `createWebhookHandler({ appSecrets, verifyToken })`. Register `webhook.on('message' | 'status' | 'error' | 'call' | 'flow' | 'template' | 'account' | 'group' | 'unknown', fn)`, then call `handleRequest` or `handleDelivery`.",
+    "Pass the raw body to `webhook.handleDelivery(rawBody, req.headers['x-hub-signature-256'])` (Express, Fastify), or the whole `Request` to `webhook.handleRequest(request)` (Next.js, Hono, Workers, Bun, Deno). Never pass a parsed JSON body.",
+    "`appSecrets` takes one App Secret string or an array. During rotation pass both the old and the new secret so deliveries signed with either are accepted. A delivery with a missing or wrong signature gets 401.",
+    "`handleRequest` returns 200 for a valid delivery, 401 for a bad signature or unresolved tenant, 413 over `maxBodyBytes` (3 MiB default), 405 with `Allow: GET, POST` for other methods, and 403 for a failed GET handshake.",
+    "By default the handler runs your handlers, then answers (`ackMode: 'after'`). Set `ackMode: 'before'` and pass `waitUntil` to answer first and work in the background. Set `retryOnHandlerError: true` to return 500 so Meta redelivers.",
+    "Without `appSecrets` the handler accepts unsigned deliveries and emits warning `WHATSAPP_WEBHOOK_UNSIGNED`. `allowUnsigned: true` only silences it. Always set `appSecrets` in production; with secrets set the signature is required.",
+    "Meta redelivers webhooks. Pass `dedupe: createMemoryDedupe()` to skip duplicates. It is per process, so for several instances supply your own `WebhookDedupe`. Use `maxEventAgeSeconds` to ignore stale events.",
+    "On Cloudflare Workers, Deno, Bun and edge runtimes import from `@solvejet/whatsapp-cloud-api/web`. It exports `createWebhookHandler`, parsers, `createMemoryDedupe` and `verifySignatureAsync` using Web Crypto and no `node:` imports.",
+    "On Workers or Vercel serverless pass `waitUntil` to `handleRequest(request, { waitUntil })`, for example `ctx.waitUntil` on Cloudflare, with `ackMode: 'before'`, so background handlers finish after the response is sent.",
+    "Test webhook code with `@solvejet/whatsapp-cloud-api/testing`: `buildWebhookPayload('text')`, then `await createTestRequest({ payload, secret })`, then `webhook.handleRequest(request)`. `signWebhookBody(body, secret)` returns `sha256=<hex>`.",
+    "For several Meta apps use `resolveTenant(request)` in `createWebhookHandler` to return `{ appSecrets, verifyToken }` per request. Returning `undefined` rejects the request (401 on POST, 403 on GET). Use `parseWebhookEvents(rawBody)` without a handler."
   ]
 }

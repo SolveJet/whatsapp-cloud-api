@@ -1,6 +1,6 @@
 # @solvejet/whatsapp-cloud-api
 
-Zero-dependency, fetch-based TypeScript SDK for the WhatsApp Cloud API.
+Zero-dependency, fetch-based TypeScript SDK for the WhatsApp Cloud API. It replaces the archived [`whatsapp-cloud-api`](https://www.npmjs.com/package/whatsapp-cloud-api) and Meta's archived [`whatsapp`](https://www.npmjs.com/package/whatsapp) packages; see the [migration guides](#more-documentation).
 
 [![CI](https://github.com/SolveJet/whatsapp-cloud-api/actions/workflows/ci.yml/badge.svg)](https://github.com/SolveJet/whatsapp-cloud-api/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@solvejet/whatsapp-cloud-api.svg)](https://www.npmjs.com/package/@solvejet/whatsapp-cloud-api)
@@ -75,6 +75,30 @@ Facts below were checked against the npm registry and GitHub on 2026-11-21. Chec
 Baileys and whatsapp-web.js drive a regular WhatsApp account through the WhatsApp Web protocol or browser automation, not through Meta's business API. WhatsApp's [terms of service](https://www.whatsapp.com/legal/terms-of-service) restrict automated or unauthorized access to its services, so check them before using these projects for a business integration. The Cloud API, through this package or one of the other SDKs above, is the supported route for business messaging.
 
 Pick this package when you want no runtime dependencies, strict TypeScript types and a small, testable surface. Pick another if it covers something you need that this one does not, for example a hosted platform or generated OpenAPI clients.
+
+For a longer comparison with dates, see [Choosing a WhatsApp Cloud API library for Node.js](https://solvejet.github.io/whatsapp-cloud-api/getting-started/choosing-a-library/).
+
+## When to use this package
+
+Use it when:
+
+- You call the WhatsApp Cloud API from Node.js 20+, Bun, Deno or Cloudflare Workers and want typed requests and responses.
+- You want no runtime dependencies and a webhook handler that verifies `X-Hub-Signature-256` against the raw body.
+- You are replacing the archived `whatsapp-cloud-api` or Meta `whatsapp` package.
+
+Do not use it when:
+
+- You need a hosted inbox, a no-code builder or a managed platform. This is a client library only.
+- You want built-in Express, Next.js, Hono or Fastify webhook adapters. Here you pass the raw body (or a `Request`) yourself; see the [examples](./examples/README.md).
+- You need to drive a regular WhatsApp account rather than the business API.
+- You need Node.js 18 or older.
+
+## Using with AI coding assistants
+
+- **Context7:** the library ID is `/solvejet/whatsapp-cloud-api`. Ask your assistant to use Context7 for it, for example "use context7 with `/solvejet/whatsapp-cloud-api`".
+- **DeepWiki:** [deepwiki.com/SolveJet/whatsapp-cloud-api](https://deepwiki.com/SolveJet/whatsapp-cloud-api).
+- **llms.txt:** [llms.txt](https://solvejet.github.io/whatsapp-cloud-api/llms.txt) lists the pages, and [llms-full.txt](https://solvejet.github.io/whatsapp-cloud-api/llms-full.txt) has their full text.
+- **In `node_modules`:** the package ships [`AGENTS-CONSUMER.md`](./AGENTS-CONSUMER.md) with usage rules for coding agents. Contributors working on this repository should read [`AGENTS.md`](./AGENTS.md) instead.
 
 ## Install
 
@@ -315,6 +339,8 @@ management (`setTwoStepPin` — there is no API to disable it), profile updates
 available. Phone-number deletion is intentionally out of scope.
 
 ## Webhooks
+
+Last verified against Graph API v26.0 on 2026-11-21.
 
 Receiving inbound messages and delivery statuses is a two-step model:
 

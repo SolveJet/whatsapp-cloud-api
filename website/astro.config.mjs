@@ -34,7 +34,25 @@ export default defineConfig({
         { tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
         { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
         { tag: 'meta', attrs: { name: 'twitter:image', content: ogImage } },
+        {
+          tag: 'script',
+          attrs: { type: 'application/ld+json' },
+          content: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: '@solvejet/whatsapp-cloud-api',
+            applicationCategory: 'DeveloperApplication',
+            operatingSystem: 'Node.js 20 or newer',
+            description:
+              'Zero-dependency TypeScript SDK for the WhatsApp Cloud API: messages, templates, media and webhooks.',
+            url: `${site}${base}/`,
+            downloadUrl: 'https://www.npmjs.com/package/@solvejet/whatsapp-cloud-api',
+            license: 'https://opensource.org/license/mit',
+            offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+          }),
+        },
       ],
+      routeMiddleware: './src/routeData.ts',
       components: {
         Footer: './src/components/Footer.astro',
       },
@@ -54,6 +72,8 @@ export default defineConfig({
           items: [
             'getting-started/overview',
             'getting-started/install',
+            'getting-started/choosing-a-library',
+            'getting-started/ai-assistants',
             'getting-started/send-first-message',
             'getting-started/configuration',
           ],

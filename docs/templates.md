@@ -1,6 +1,8 @@
 # Template management
 
 Create, list, read, edit, and delete message templates with `client.templates`.
+Last verified against Graph API v26.0 on 2026-11-21.
+
 Every method accepts an optional trailing `businessAccountId` (the id-scoped
 `get`/`edit` take a required template id instead), falling back to the
 configured `businessAccountId`; when neither is set the call throws

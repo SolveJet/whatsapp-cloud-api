@@ -77,7 +77,8 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "AGENTS-CONSUMER.md"
   ],
   "sideEffects": false,
   "scripts": {
