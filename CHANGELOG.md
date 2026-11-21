@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-11-21
+
 ### Added
 
-- Documentation site at https://solvejet.github.io/whatsapp-cloud-api/, built from the README and `docs/` with how-to guides for webhook signature verification, the `hub.challenge` handshake, templates, media and rate limits, framework recipes, and a generated API reference. It is deployed to GitHub Pages from `master`.
+- Documentation site at https://solvejet.github.io/whatsapp-cloud-api/, built from the README and `docs/`, with how-to guides for webhook signature verification, the `hub.challenge` handshake, templates, media and rate limits, framework recipes, and a generated API reference. It is deployed to GitHub Pages from `master`.
+
+### Changed
+
+- The package `homepage` now points to the documentation site, so the npm page links to it.
 
 ## [1.3.1] - 2026-11-20
 
@@ -173,7 +179,8 @@ as stable:
 - Interactive button and list headers now accept the structured `InteractiveHeader` type in addition to a plain string (backward compatible).
 - Removed stale "omitted" notes from the contact types now that the full contacts object is modeled.
 
-[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.3.2...HEAD
+[1.3.2]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.2.0...v1.2.1

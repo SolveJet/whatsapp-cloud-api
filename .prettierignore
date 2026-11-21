@@ -3,3 +3,5 @@ coverage
 pnpm-lock.yaml
 .gemini
 docs/assets
+# Search engine verification files must stay byte-for-byte as issued
+website/public/google*.html
