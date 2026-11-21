@@ -1,7 +1,8 @@
 # Documentation
 
 Guides for `@solvejet/whatsapp-cloud-api`. The main reference is the
-[project README](../README.md).
+[project README](../README.md). The same guides, plus how-to pages and a generated API reference, are published at
+<https://solvejet.github.io/whatsapp-cloud-api/>.
 
 ## API guides
 

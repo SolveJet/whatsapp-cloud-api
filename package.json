@@ -26,7 +26,7 @@
     "typescript-sdk",
     "nodejs"
   ],
-  "homepage": "https://github.com/SolveJet/whatsapp-cloud-api#readme",
+  "homepage": "https://solvejet.github.io/whatsapp-cloud-api/",
   "bugs": {
     "url": "https://github.com/SolveJet/whatsapp-cloud-api/issues"
   },

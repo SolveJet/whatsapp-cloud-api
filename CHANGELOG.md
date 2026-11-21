@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Documentation site at https://solvejet.github.io/whatsapp-cloud-api/, built from the README and `docs/` with how-to guides for webhook signature verification, the `hub.challenge` handshake, templates, media and rate limits, framework recipes, and a generated API reference. It is deployed to GitHub Pages from `master`.
+
 ## [1.3.1] - 2026-11-20
 
 ### Security
