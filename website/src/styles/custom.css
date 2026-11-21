@@ -15,3 +15,7 @@
   font-size: var(--sl-text-sm);
   color: var(--sl-color-gray-3);
 }
+
+.site-disclaimer a {
+  color: var(--sl-color-text-accent);
+}
