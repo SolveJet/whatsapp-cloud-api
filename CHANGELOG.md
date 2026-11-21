@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-11-22
+
+### Added
+
+- `retryMessageSends` option on `WhatsAppClientConfig` (default `false`). Set it to `true` to retry message sends on `5xx`, network and timeout failures as well as `429`. Meta documents no idempotency for sends, so a retry can deliver a message twice.
+- `AGENTS-CONSUMER.md` is included in the npm package.
+- CI check of the packed package with Are the Types Wrong for the `.`, `./web` and `./testing` entry points.
+
+### Changed
+
+- Message sends (`POST {phoneNumberId}/messages`: every sender, `sendRaw`, mark-as-read and typing indicators) now retry on HTTP `429` only. A transient `5xx` on a send now surfaces as an error by default, as do network failures and timeouts. Previously these were retried, which could send the same message twice. Set `retryMessageSends: true` to get the old behaviour. `GET`, `DELETE` and other `POST` requests keep the existing retry policy.
+- The Cloudflare Workers example now uses `@cloudflare/vitest-plugin`, the renamed successor of the deprecated `@cloudflare/vitest-pool-workers`.
+
+### Fixed
+
+- TypeScript projects using `moduleResolution: node10` could not resolve types for `@solvejet/whatsapp-cloud-api/web` and `/testing`. `package.json` now has `typesVersions` for both. Runtime resolution is unchanged.
+- A request aborted through its `signal` is no longer retried.
+- A `200` response with a body that is not valid JSON is no longer retried.
+
 ## [1.4.0] - 2026-11-21
 
 ### Added

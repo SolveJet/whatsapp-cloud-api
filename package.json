@@ -1,6 +1,6 @@
 {
   "name": "@solvejet/whatsapp-cloud-api",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Zero-dependency TypeScript SDK for the WhatsApp Cloud API: send messages, templates and media, verify webhooks, manage WABAs. Node 20+, native fetch.",
   "keywords": [
     "whatsapp",
@@ -75,6 +75,16 @@
       }
     },
     "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "web": [
+        "./dist/web.d.ts"
+      ],
+      "testing": [
+        "./dist/testing.d.ts"
+      ]
+    }
   },
   "files": [
     "dist",

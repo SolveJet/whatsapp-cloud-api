@@ -10,7 +10,7 @@
       "@solvejet/whatsapp-cloud-api/web": ["../../dist/web.d.ts"],
       "@solvejet/whatsapp-cloud-api/testing": ["../../dist/testing.d.ts"]
     },
-    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers"]
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-plugin"]
   },
   "include": ["src", "test"]
 }
