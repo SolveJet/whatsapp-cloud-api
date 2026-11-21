@@ -15,7 +15,7 @@
     "Parse POSTs with `parseWebhook`, then `extractMessages` and `extractStatuses`. Switch on `message.type` and keep a default branch for message types the SDK does not model.",
     "Free-form messages only work inside the 24-hour customer service window. Outside it send an approved template. Error 131047 is `WhatsAppReEngagementError`; do not retry it in a loop.",
     "`sendTemplate(to, { name, language: { code: 'en_US' }, components })` needs a template already approved by Meta. Create and list templates with `client.templates`. Never invent template names or parameters.",
-    "The SDK already retries 429, 5xx and network errors (default 2 retries, backoff). Do not wrap calls in your own retry loop. Branch on `WhatsAppRateLimitError`, `WhatsAppAuthenticationError` and `WhatsAppApiError`.",
+    "Message sends retry on 429 only; 5xx and network errors surface (retryMessageSends: true opts in, risking duplicates). Dedupe sends yourself. Branch on `WhatsAppRateLimitError`, `WhatsAppAuthenticationError`, `WhatsAppApiError`.",
     "For message bodies the SDK does not model use `client.messages.sendRaw`. Do not hand-write `fetch` calls to graph.facebook.com when a `client.*` method exists.",
     "Recipients are phone number strings in international format, as in '15551234567'. For users reachable only by username pass `{ bsuid: '...' }`.",
     "For incoming webhooks prefer `createWebhookHandler({ appSecrets, verifyToken })`. Register `webhook.on('message' | 'status' | 'error' | 'call' | 'flow' | 'template' | 'account' | 'group' | 'unknown', fn)`, then call `handleRequest` or `handleDelivery`.",

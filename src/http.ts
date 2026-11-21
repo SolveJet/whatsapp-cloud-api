@@ -26,6 +26,13 @@ export interface HttpClientConfig {
   timeoutMs: number;
   /** Maximum number of retries (total attempts = maxRetries + 1). */
   maxRetries: number;
+  /**
+   * When `true`, `POST` requests to a `messages` path are retried on `5xx`, network
+   * and timeout failures as well as `429`. Defaults to `false`: those requests are
+   * retried on `429` only, because Meta may have accepted the message even though
+   * the response was lost, and a retry would then send it twice.
+   */
+  retryMessageSends?: boolean;
   /** Injectable delay used for backoff; overridable so tests can fake timers. */
   delay?: (ms: number) => Promise<void>;
 }
@@ -44,6 +51,23 @@ const BACKOFF_FACTOR = 2;
 /** True when an HTTP status is eligible for a retry (429 or any 5xx). */
 const isRetryableStatus = (status: number): boolean => status === 429 || status >= 500;
 
+/** True for a `POST` to a `.../messages` path (sends, mark-as-read, typing indicators). */
+const isMessageSend = (method: string, path: string): boolean => {
+  if (method.toUpperCase() !== 'POST') {
+    return false;
+  }
+  // Plain string scanning (no regex) keeps this linear on any input.
+  const query = path.indexOf('?');
+  const hash = path.indexOf('#');
+  const ends = [query, hash].filter((index) => index !== -1);
+  let pathname = ends.length > 0 ? path.slice(0, Math.min(...ends)) : path;
+  if (pathname.endsWith('/')) {
+    pathname = pathname.slice(0, -1);
+  }
+  return pathname === 'messages' || pathname.endsWith('/messages');
+};
+/** Errors that must never be retried, whatever the request (aborts, unparsable 2xx bodies). */
+const neverRetry = new WeakSet<Error>();
 /** Parses a `Retry-After` header (delta-seconds or HTTP-date) into milliseconds. */
 const parseRetryAfter = (headerValue: string | null): number | undefined => {
   if (headerValue === null) {
@@ -89,6 +113,7 @@ export class HttpClient {
   private readonly baseUrl: string;
   private readonly timeoutMs: number;
   private readonly maxRetries: number;
+  private readonly retryMessageSends: boolean;
   private readonly delay: (ms: number) => Promise<void>;
 
   constructor(config: HttpClientConfig) {
@@ -96,6 +121,7 @@ export class HttpClient {
     this.baseUrl = config.baseUrl;
     this.timeoutMs = config.timeoutMs;
     this.maxRetries = config.maxRetries;
+    this.retryMessageSends = config.retryMessageSends ?? false;
     this.delay = config.delay ?? defaultDelay;
   }
 
@@ -137,12 +163,15 @@ export class HttpClient {
       return this.attempt<T>(url, method, headers, outgoingBody, signal, responseType);
     }
 
+    // Message sends are not idempotent and Meta documents no de-duplication, so
+    // by default only a 429 (an explicit rejection) is retried for them.
+    const safeOnly = !this.retryMessageSends && isMessageSend(method, path);
     let attempt = 0;
     for (;;) {
       try {
         return await this.attempt<T>(url, method, headers, outgoingBody, signal, responseType);
       } catch (error) {
-        const retryable = this.isRetryable(error);
+        const retryable = signal?.aborted !== true && this.isRetryable(error, safeOnly);
         const retryAfterMs = this.retryAfterFromError(error);
         if (!retryable || attempt >= this.maxRetries) {
           throw error;
@@ -215,9 +244,13 @@ export class HttpClient {
       try {
         return JSON.parse(text) as T;
       } catch (cause) {
-        throw new WhatsAppRequestError('Failed to parse WhatsApp Cloud API response as JSON.', {
-          cause,
-        });
+        const parseError = new WhatsAppRequestError(
+          'Failed to parse WhatsApp Cloud API response as JSON.',
+          { cause },
+        );
+        // Meta accepted the request, so repeating it could duplicate its effect.
+        neverRetry.add(parseError);
+        throw parseError;
       }
     }
 
@@ -237,15 +270,15 @@ export class HttpClient {
   }
 
   /** Decides whether an error from an attempt should be retried. */
-  private isRetryable(error: unknown): boolean {
+  private isRetryable(error: unknown, safeOnly: boolean): boolean {
     if (error instanceof WhatsAppValidationError) {
       return false;
     }
     if (error instanceof WhatsAppRequestError) {
-      return true;
+      return !safeOnly && !neverRetry.has(error);
     }
     if (error instanceof WhatsAppApiError) {
-      return isRetryableStatus(error.httpStatus);
+      return safeOnly ? error.httpStatus === 429 : isRetryableStatus(error.httpStatus);
     }
     return false;
   }

@@ -905,7 +905,16 @@ describe('MessagesResource sendRaw', () => {
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
-  it('retries a 5xx and then succeeds', async () => {
+  it('does not retry a 5xx on a send by default', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { message: 'oops', code: 1 } }), { status: 500 }),
+    );
+    await expect(makeClient().messages.sendRaw({ to: '1555' })).rejects.toBeInstanceOf(
+      WhatsAppApiError,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it('retries a 5xx on a send and then succeeds with retryMessageSends: true', async () => {
     vi.useFakeTimers();
     try {
       fetchMock
@@ -913,7 +922,12 @@ describe('MessagesResource sendRaw', () => {
           new Response(JSON.stringify({ error: { message: 'oops', code: 1 } }), { status: 500 }),
         )
         .mockResolvedValueOnce(new Response(JSON.stringify(SUCCESS), { status: 200 }));
-      const promise = makeClient().messages.sendRaw({ to: '1555' });
+      const client = new WhatsAppClient({
+        accessToken: 'secret-token',
+        phoneNumberId: PHONE_ID,
+        retryMessageSends: true,
+      });
+      const promise = client.messages.sendRaw({ to: '1555' });
       await vi.runAllTimersAsync();
       await expect(promise).resolves.toEqual(SUCCESS);
       expect(fetchMock).toHaveBeenCalledTimes(2);

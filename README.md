@@ -37,7 +37,7 @@ Runnable webhook servers for Express, Next.js, Hono and Fastify are in [`example
 - **Zero runtime dependencies.** It uses the platform `fetch` and `AbortController`, so there is no `axios` or `node-fetch` in your tree.
 - **Fully typed.** Every method, option, payload and webhook event ships with `.d.ts` declarations, for both ESM and CommonJS.
 - **Fail-fast validation.** Documented API limits (body and footer lengths, button counts, list rows, reaction emoji and more) are checked before the request is sent. Nothing is silently truncated.
-- **Typed errors.** Rate limits, re-engagement, authentication, validation and webhook failures are distinct classes. Requests retry `429`, `5xx` and network errors with backoff.
+- **Typed errors.** Rate limits, re-engagement, authentication, validation and webhook failures are distinct classes. Requests retry with backoff. Message sends retry on `429` only, so a retry cannot deliver a message twice.
 - **Business-scoped user IDs.** Webhook types expose BSUID and username fields, and senders accept a `{ bsuid }` recipient. See [Usernames and BSUIDs](#usernames-and-bsuids).
 - **Released from CI** with npm provenance through OIDC trusted publishing.
 
@@ -128,15 +128,16 @@ The HTTP client only needs `fetch` and `AbortController`. The main entry's webho
 `WhatsAppClient` takes a single configuration object. Only `accessToken` is
 required; everything else has a sensible default.
 
-| Option              | Type     | Default                      | Description                                                                      |
-| ------------------- | -------- | ---------------------------- | -------------------------------------------------------------------------------- |
-| `accessToken`       | `string` | — (required)                 | Permanent or temporary access token used to authenticate requests.               |
-| `phoneNumberId`     | `string` | —                            | Default sender phone number ID for messaging and media calls.                    |
-| `businessAccountId` | `string` | —                            | WhatsApp Business Account (WABA) ID. Default id for `client.waba` methods.       |
-| `apiVersion`        | `string` | `v26.0`                      | Graph API version to target.                                                     |
-| `baseUrl`           | `string` | `https://graph.facebook.com` | Base URL for the Graph API (override for a proxy or a mock).                     |
-| `timeoutMs`         | `number` | `30000`                      | Per-attempt request timeout in milliseconds.                                     |
-| `maxRetries`        | `number` | `2`                          | Max retries on `429`/`5xx`/network errors (total attempts = `maxRetries` + `1`). |
+| Option              | Type      | Default                      | Description                                                                                 |
+| ------------------- | --------- | ---------------------------- | ------------------------------------------------------------------------------------------- |
+| `accessToken`       | `string`  | — (required)                 | Permanent or temporary access token used to authenticate requests.                          |
+| `phoneNumberId`     | `string`  | —                            | Default sender phone number ID for messaging and media calls.                               |
+| `businessAccountId` | `string`  | —                            | WhatsApp Business Account (WABA) ID. Default id for `client.waba` methods.                  |
+| `apiVersion`        | `string`  | `v26.0`                      | Graph API version to target.                                                                |
+| `baseUrl`           | `string`  | `https://graph.facebook.com` | Base URL for the Graph API (override for a proxy or a mock).                                |
+| `timeoutMs`         | `number`  | `30000`                      | Per-attempt request timeout in milliseconds.                                                |
+| `maxRetries`        | `number`  | `2`                          | Max retries (total attempts = `maxRetries` + `1`). See [Retries](./docs/errors.md#retries). |
+| `retryMessageSends` | `boolean` | `false`                      | Also retry message sends on `5xx`, network and timeout errors. Can send a message twice.    |
 
 The defaults are exported as `DEFAULT_API_VERSION`, `DEFAULT_BASE_URL`,
 `DEFAULT_TIMEOUT_MS`, and `DEFAULT_MAX_RETRIES`.
@@ -161,9 +162,14 @@ optional trailing `phoneNumberId` so a single client can send from multiple
 numbers. When omitted, the client's configured `phoneNumberId` is used; if
 neither is set, the call throws `WhatsAppValidationError`.
 
-The HTTP core retries idempotent failures (`429`, `5xx`, and network/timeout
-errors) with jittered exponential backoff, honoring a `Retry-After` header when
-present.
+The HTTP core retries with jittered exponential backoff, honoring a
+`Retry-After` header when present. `GET`, `DELETE` and non-message `POST`
+requests retry on `429`, `5xx` and network/timeout errors. A `POST` to
+`{phoneNumberId}/messages` (sends, `sendRaw`, mark-as-read, typing indicators)
+retries on `429` only, because Meta documents no idempotency for sends and a
+retry after a lost response could deliver the message twice. Set
+`retryMessageSends: true` to retry those on `5xx` and network errors too. See
+[Retries](./docs/errors.md#retries).
 
 ## Messaging
 

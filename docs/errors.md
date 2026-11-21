@@ -53,4 +53,40 @@ constants map names the common Graph error codes (e.g.
 `WhatsAppErrorCode.TEMPLATE_NOT_EXIST`), so you can branch on a named constant
 instead of a magic number. Its value type is `WhatsAppErrorCodeValue`.
 
+## Retries
+
+The client retries failed requests with jittered exponential backoff (300 ms,
+doubling per attempt) and waits for `Retry-After` when the response has it.
+`maxRetries` (default `2`, so three attempts) and `timeoutMs` (default 30 s per
+attempt) control it.
+
+| Request                                                                                 | Retried on                             |
+| --------------------------------------------------------------------------------------- | -------------------------------------- |
+| `GET`, `DELETE`, and `POST` other than messages                                         | `429`, `5xx`, network errors, timeouts |
+| `POST {phoneNumberId}/messages`: every send, `sendRaw`, mark-as-read, typing indicators | `429` only                             |
+| Multipart media upload                                                                  | never                                  |
+
+Never retried, for any request: a call aborted through its `signal`, a `200`
+response whose body is not valid JSON, and any `4xx` other than `429`. A rate
+limit code that arrives with another HTTP status, such as a `400`, is not
+retried either.
+
+**Why sends retry on `429` only.** Meta documents no idempotency key or
+de-duplication for sends. A `5xx`, a timeout or a dropped connection can happen
+after Meta accepted the message, and a retry would then send it a second time.
+A `429` is a rejection, so retrying it is safe. A transient `5xx` on a send now
+reaches your code as `WhatsAppApiError`, and a network failure or timeout as
+`WhatsAppRequestError`. Check the `messages` and status webhooks before you
+resend, or de-duplicate on your side.
+
+To restore the older behaviour for sends, set `retryMessageSends: true`:
+
+```ts
+const client = new WhatsAppClient({
+  accessToken: process.env.WHATSAPP_ACCESS_TOKEN!,
+  phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID!,
+  retryMessageSends: true, // 5xx, network errors and timeouts are retried; duplicates are possible
+});
+```
+
 [Back to the README](../README.md)

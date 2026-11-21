@@ -334,9 +334,10 @@ appSecret })` throws `WhatsAppWebhookError` when either value is present but
   `WhatsAppValidationError` before any request.
 - **Retries and timeouts.** The HTTP core retries `429`, `5xx` and network
   errors (default `maxRetries: 2`, timeout 30 seconds per attempt), with
-  backoff, and honors `Retry-After`. JSON `POST` sends are retried too, so a
-  send that failed after Meta accepted it could be repeated. If duplicates are
-  worse than failures for you, set `maxRetries: 0` and handle retries yourself.
+  backoff, and honors `Retry-After`. Message sends retry on `429` only, since a
+  send that failed after Meta accepted it could be repeated. Set
+  `retryMessageSends: true` to retry sends on `5xx` and network errors too, or
+  `maxRetries: 0` to handle retries yourself.
   Multipart media uploads are not retried. 0.3.1 has no retries.
 - **Validation.** Documented limits (body and footer length, number of buttons,
   list rows, reaction emoji) are checked before sending. 0.3.1 sends what you

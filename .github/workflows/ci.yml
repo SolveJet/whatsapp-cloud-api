@@ -215,6 +215,25 @@ jobs:
         run: pnpm --dir examples/cloudflare-workers install --frozen-lockfile
       - name: Test in workerd
         run: pnpm --dir examples/cloudflare-workers test
+  attw:
+    name: Package types (Are the Types Wrong)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm run build
+      - name: Check packed package types
+        run: pnpm dlx @arethetypeswrong/cli@0.18.5 --pack . --entrypoints . ./web ./testing
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest

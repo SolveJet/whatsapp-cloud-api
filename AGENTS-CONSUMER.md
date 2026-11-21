@@ -43,7 +43,7 @@ webhook.on('message', async ({ message }) => console.log(message.id, message.typ
 2. **Wrong secret.** `appSecrets` is the Meta App Secret (App settings > Basic). It is not the access token or the verify token.
 3. **Leaving the secret out.** Without `appSecrets` the handler accepts unsigned deliveries and warns (`WHATSAPP_WEBHOOK_UNSIGNED`). Always set it in production. `allowUnsigned: true` only silences the warning.
 4. **Free-form messages outside the 24-hour window.** Send an approved template instead (`client.messages.sendTemplate`). Error 131047 is `WhatsAppReEngagementError`; do not retry it in a loop.
-5. **Own retry loops.** The SDK retries `429`, `5xx` and network errors (2 retries by default). Branch on `WhatsAppRateLimitError`, `WhatsAppAuthenticationError` and `WhatsAppApiError`.
+5. **Own retry loops.** Reads retry `429`, `5xx` and network errors (2 retries by default). Message sends (`POST .../messages`) retry on `429` only, since a retry after a lost response can send the message twice; `retryMessageSends: true` opts in to retrying `5xx` and network errors, with duplicate-send risk. Branch on `WhatsAppRateLimitError`, `WhatsAppAuthenticationError` and `WhatsAppApiError`.
 6. **Invented templates.** Templates must already be approved by Meta. List them with `client.templates`.
 7. **Slow webhook responses.** Meta redelivers. Use `dedupe: createMemoryDedupe()` (per process) and, on serverless, `ackMode: 'before'` with `waitUntil`.
 
