@@ -442,8 +442,18 @@ export type WebhookRawBody = string | Uint8Array | ArrayBuffer;
 
 /** Configuration for {@link WebhookHandler}. */
 export interface WebhookHandlerConfig {
-  /** App Secret used to verify the `X-Hub-Signature-256` header. */
-  appSecret?: string;
+  /**
+   * App Secret used to verify the `X-Hub-Signature-256` header. Pass an array
+   * to accept several secrets at once, for example the old and new secret
+   * while rotating.
+   */
+  appSecret?: string | readonly string[];
+  /**
+   * Set to `true` to accept unsigned deliveries without the one-time process
+   * warning. Only relevant when no `appSecret` is configured; with a secret
+   * the signature is always required.
+   */
+  allowUnsigned?: boolean;
   /** Verify token used during the GET verification handshake. */
   verifyToken?: string;
   /**

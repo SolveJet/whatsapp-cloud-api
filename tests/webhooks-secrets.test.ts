@@ -19,7 +19,7 @@ describe('verifySignature with a bad secret', () => {
     expect(verifySignature(rawBody, sign(rawBody, ''), '')).toBe(false);
   });
 
-  it.each([[undefined], [null], [42], [{}], [['secret']], [Buffer.from('secret')]])(
+  it.each([[undefined], [null], [42], [{}], [Buffer.from('secret')]])(
     'returns false without throwing for a non-string secret (%#)',
     (secret) => {
       const header = sign(rawBody, 'secret');
