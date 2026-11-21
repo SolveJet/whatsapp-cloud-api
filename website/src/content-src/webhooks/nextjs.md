@@ -1,11 +1,11 @@
 ---
 title: 'WhatsApp Cloud API webhook in a Next.js App Router route handler'
-description: 'A Next.js App Router route handler for the WhatsApp Cloud API webhook: read the raw body with arrayBuffer(), verify the signature, return the challenge.'
+description: 'A Next.js App Router route handler for the WhatsApp Cloud API webhook: createWebhookHandler and handleRequest verify X-Hub-Signature-256 and answer the challenge.'
 sidebar:
   order: 6
 ---
 
-In a Next.js App Router route handler, call `request.arrayBuffer()` to get the exact bytes. Calling `request.json()` first would lose them and the signature check would fail. `handler.isValid` and `handler.parse` accept an `ArrayBuffer`. Because serverless functions can stop after the response, the example awaits its work before returning.
+In a Next.js App Router route handler, pass the `Request` to `handleRequest` from `createWebhookHandler`. It reads the raw bytes itself, so do not call `request.json()` first. The example imports from the `/web` entry point and keeps the default `ackMode`, so the handlers finish before the response. To answer first, set `ackMode: 'before'` and pass `waitUntil`; see [Edge runtimes](/whatsapp-cloud-api/webhooks/edge-runtimes/).
 
 {{include examples/nextjs/app/api/webhook/route.ts}}
 

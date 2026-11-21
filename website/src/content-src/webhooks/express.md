@@ -5,7 +5,7 @@ sidebar:
   order: 5
 ---
 
-In Express, the signature must be checked against the bytes Meta sent. Mount `express.raw({ type: 'application/json' })` on the POST route so `req.body` is a `Buffer`, and do not put `express.json()` in front of it. The GET route reads `req.query` for the verification request.
+In Express, the signature must be checked against the bytes Meta sent. Mount `express.raw({ type: 'application/json' })` on the POST route so `req.body` is a `Buffer`, and do not put `express.json()` in front of it. Pass that buffer to `handleDelivery` and answer with the status it returns. The GET route reads `req.query` for the verification request.
 
 {{include examples/express/server.ts}}
 
