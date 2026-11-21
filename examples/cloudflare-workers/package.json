@@ -1,0 +1,17 @@
+{
+  "name": "whatsapp-cloud-api-example-cloudflare-workers",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Workers webhook example, tested in workerd. Not published.",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.23.0",
+    "@cloudflare/workers-types": "^5.20261119.1",
+    "typescript": "^5.9.0",
+    "vitest": "~4.1.0",
+    "wrangler": "^4.166.0"
+  }
+}
