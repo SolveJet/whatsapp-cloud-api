@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Social card</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      body {
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+        color: #f0fdfa;
+        background: radial-gradient(900px 500px at 85% 0%, #115e59 0%, transparent 70%), #042f2e;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 72px 80px;
+      }
+      .pkg {
+        font-family: 'JetBrains Mono', 'DejaVu Sans Mono', monospace;
+        font-size: 28px;
+        color: #5eead4;
+      }
+      h1 {
+        font-size: 76px;
+        line-height: 1.08;
+        letter-spacing: -0.02em;
+        max-width: 920px;
+        margin-top: 28px;
+      }
+      p {
+        font-size: 32px;
+        color: #99f6e4;
+        margin-top: 24px;
+        max-width: 880px;
+        line-height: 1.35;
+      }
+      .install {
+        display: inline-block;
+        font-family: 'JetBrains Mono', 'DejaVu Sans Mono', monospace;
+        font-size: 28px;
+        background: #021f1e;
+        border: 1px solid #0f766e;
+        border-radius: 12px;
+        padding: 18px 28px;
+      }
+      .install span {
+        color: #5eead4;
+      }
+      .foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+      }
+      .note {
+        font-size: 20px;
+        color: #5eead4;
+        opacity: 0.8;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <div class="pkg">@solvejet/whatsapp-cloud-api</div>
+      <h1>WhatsApp Cloud API SDK for Node.js and TypeScript</h1>
+      <p>Zero dependencies. Typed messages, templates, media and signed webhooks.</p>
+    </div>
+    <div class="foot">
+      <div class="install"><span>$</span> npm install @solvejet/whatsapp-cloud-api</div>
+      <div class="note">Independent open-source project</div>
+    </div>
+  </body>
+</html>
