@@ -52,8 +52,20 @@ const BACKOFF_FACTOR = 2;
 const isRetryableStatus = (status: number): boolean => status === 429 || status >= 500;
 
 /** True for a `POST` to a `.../messages` path (sends, mark-as-read, typing indicators). */
-const isMessageSend = (method: string, path: string): boolean =>
-  method.toUpperCase() === 'POST' && /(^|\/)messages\/?(?:[?#].*)?$/.test(path);
+const isMessageSend = (method: string, path: string): boolean => {
+  if (method.toUpperCase() !== 'POST') {
+    return false;
+  }
+  // Plain string scanning (no regex) keeps this linear on any input.
+  const query = path.indexOf('?');
+  const hash = path.indexOf('#');
+  const ends = [query, hash].filter((index) => index !== -1);
+  let pathname = ends.length > 0 ? path.slice(0, Math.min(...ends)) : path;
+  if (pathname.endsWith('/')) {
+    pathname = pathname.slice(0, -1);
+  }
+  return pathname === 'messages' || pathname.endsWith('/messages');
+};
 /** Errors that must never be retried, whatever the request (aborts, unparsable 2xx bodies). */
 const neverRetry = new WeakSet<Error>();
 /** Parses a `Retry-After` header (delta-seconds or HTTP-date) into milliseconds. */

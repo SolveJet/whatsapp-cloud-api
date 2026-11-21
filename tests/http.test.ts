@@ -206,6 +206,33 @@ describe('HttpClient retry policy', () => {
     ).rejects.toBeInstanceOf(WhatsAppApiError);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+  it.each([
+    ['messages', 1],
+    ['123/messages', 1],
+    ['123/messages/', 1],
+    ['123/messages?fields=id', 1],
+    ['123/messages#frag', 1],
+    ['123/message_templates', 3],
+    ['123/messagesx', 3],
+    ['123/x?next=/messages', 3],
+  ])('treats a POST to %s as a message send: %i call(s) on 500', async (path, calls) => {
+    const fetchMock = vi.fn(() => Promise.resolve(jsonResponse(errorEnvelope(1), { status: 500 })));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(makeClient().request({ method: 'POST', path, body: {} })).rejects.toBeInstanceOf(
+      WhatsAppApiError,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(calls);
+  });
+  it('classifies a long crafted path in linear time', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(jsonResponse(errorEnvelope(1), { status: 400 })));
+    vi.stubGlobal('fetch', fetchMock);
+    const path = `messages#${'/messages#'.repeat(50_000)}x`;
+    const started = performance.now();
+    await expect(makeClient().request({ method: 'POST', path, body: {} })).rejects.toBeInstanceOf(
+      WhatsAppApiError,
+    );
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
   it('does not retry a network error or timeout on a message POST by default', async () => {
     const fetchMock = vi.fn().mockRejectedValue(new TypeError('network down'));
     vi.stubGlobal('fetch', fetchMock);
