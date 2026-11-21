@@ -4,7 +4,7 @@
   "public_key": "pk_DjerGZ5xYfK37vhHRnLL4",
   "projectTitle": "@solvejet/whatsapp-cloud-api",
   "description": "TypeScript SDK for Meta's WhatsApp Cloud API (Graph API v26.0): send text, media, template, interactive and Flow messages, manage media and templates, and verify and parse webhooks. Zero runtime dependencies, Node.js 20+.",
-  "excludeFiles": ["CHANGELOG.md"],
+  "excludeFiles": ["CHANGELOG.md", "CODE_OF_CONDUCT.md", "LICENSE"],
   "rules": [
     "Install with `npm install @solvejet/whatsapp-cloud-api`. Use the scoped name. The unscoped `whatsapp-cloud-api` and Meta's `whatsapp` are different packages and both are archived.",
     "Create one client: `new WhatsAppClient({ accessToken, phoneNumberId })` and call `client.messages.sendText(to, text)`. The message ID is `res.messages[0]?.id`. Requires Node.js 20+ (global fetch); no axios.",
