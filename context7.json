@@ -1,4 +1,22 @@
 {
+  "$schema": "https://context7.com/schema/context7.json",
   "url": "https://context7.com/solvejet/whatsapp-cloud-api",
-  "public_key": "pk_DjerGZ5xYfK37vhHRnLL4"
+  "public_key": "pk_DjerGZ5xYfK37vhHRnLL4",
+  "projectTitle": "@solvejet/whatsapp-cloud-api",
+  "description": "TypeScript SDK for Meta's WhatsApp Cloud API (Graph API v26.0): send text, media, template, interactive and Flow messages, manage media and templates, and verify and parse webhooks. Zero runtime dependencies, Node.js 20+.",
+  "excludeFiles": ["CHANGELOG.md"],
+  "rules": [
+    "Install with `npm install @solvejet/whatsapp-cloud-api`. Use the scoped name. The unscoped `whatsapp-cloud-api` and Meta's `whatsapp` are different packages and both are archived.",
+    "Create one client: `new WhatsAppClient({ accessToken, phoneNumberId })` and call `client.messages.sendText(to, text)`. The message ID is `res.messages[0]?.id`. Requires Node.js 20+ (global fetch); no axios.",
+    "Verify webhook POSTs against the raw, unparsed body: pass the exact string, Buffer, Uint8Array or ArrayBuffer to `verifySignature` or `WebhookHandler`. Never hash `JSON.stringify(req.body)`; re-serialized JSON breaks the HMAC.",
+    "`appSecret` for `X-Hub-Signature-256` is the Meta App Secret (App settings > Basic). It is not the access token or the verify token. Load all secrets from environment variables.",
+    "`new WebhookHandler({ appSecret })` throws `WhatsAppWebhookError` if `appSecret` is undefined or empty. Omitting the key disables signature checks, so always set it in production.",
+    "Answer the GET handshake with `verifyWebhook` or `verifyWebhookQuery` and return its `statusCode` and `body` unchanged (200 with the challenge, or 403).",
+    "Parse POSTs with `parseWebhook`, then `extractMessages` and `extractStatuses`. Switch on `message.type` and keep a default branch for message types the SDK does not model.",
+    "Free-form messages only work inside the 24-hour customer service window. Outside it send an approved template. Error 131047 is `WhatsAppReEngagementError`; do not retry it in a loop.",
+    "`sendTemplate(to, { name, language: { code: 'en_US' }, components })` needs a template already approved by Meta. Create and list templates with `client.templates`. Never invent template names or parameters.",
+    "The SDK already retries 429, 5xx and network errors (default 2 retries, backoff). Do not wrap calls in your own retry loop. Branch on `WhatsAppRateLimitError`, `WhatsAppAuthenticationError` and `WhatsAppApiError`.",
+    "For message bodies the SDK does not model use `client.messages.sendRaw`. Do not hand-write `fetch` calls to graph.facebook.com when a `client.*` method exists.",
+    "Recipients are phone number strings in international format, as in '15551234567'. For users reachable only by username pass `{ bsuid: '...' }`."
+  ]
 }
