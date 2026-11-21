@@ -111,27 +111,67 @@ export {
   verifyWebhook,
   verifyWebhookQuery,
 } from './resources/webhooks.js';
-export type { WebhookVerificationResult } from './resources/webhooks.js';
+export { createWebhookHandler } from './resources/webhook-handler.js';
+export { createMemoryDedupe } from './resources/webhook-dedupe.js';
+export type { MemoryDedupeOptions, WebhookDedupe } from './resources/webhook-dedupe.js';
+export { parseWebhookEvents } from './resources/webhook-events.js';
+export { getUserKey, isKnownMessage, isStale } from './resources/webhook-helpers.js';
+export type { IsStaleOptions, UserKeySource } from './resources/webhook-helpers.js';
+export { verifySignatureAsync } from './resources/webhook-verify-web.js';
+export type {
+  CreateWebhookHandlerOptions,
+  WebhookDeliveryResult,
+  WebhookErrorInfo,
+  WebhookHandlerApi,
+  WebhookHandlerFn,
+  WebhookRequestOptions,
+  WebhookSignatureVerifier,
+  WebhookTenant,
+} from './resources/webhook-handler-core.js';
+export type {
+  AccountValue,
+  AccountWebhookEvent,
+  CallRecord,
+  CallStatusRecord,
+  CallWebhookEvent,
+  FlowEventName,
+  FlowValue,
+  FlowWebhookEvent,
+  GroupValue,
+  GroupWebhookEvent,
+  TemplateValue,
+  TemplateWebhookEvent,
+  UnknownEventPayload,
+  WebhookContext,
+  WebhookEvent,
+  WebhookEventMap,
+  WebhookEventName,
+} from './types/webhook-events.js';
 export type {
   AudioIncomingMessage,
   ButtonIncomingMessage,
   ContactsIncomingMessage,
   DocumentIncomingMessage,
+  EditIncomingMessage,
   ImageIncomingMessage,
   IncomingContactCard,
   IncomingMediaObject,
   IncomingMessage,
+  IncomingOrderProductItem,
   InteractiveIncomingMessage,
   InteractiveNfmReply,
   LocationIncomingMessage,
   MessageStatus,
+  OrderIncomingMessage,
   ParsedWebhook,
   ParseWebhookOptions,
   ReactionIncomingMessage,
+  RevokeIncomingMessage,
   StickerIncomingMessage,
   SystemIncomingMessage,
   TextIncomingMessage,
   UnknownIncomingMessage,
+  UnsupportedIncomingMessage,
   VideoIncomingMessage,
   WebhookChange,
   WebhookContact,
@@ -144,6 +184,7 @@ export type {
   WebhookPayload,
   WebhookRawBody,
   WebhookValue,
+  WebhookVerificationResult,
 } from './types/webhooks.js';
 
 export { PhoneNumbersResource } from './resources/phone-numbers.js';

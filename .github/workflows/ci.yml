@@ -86,11 +86,135 @@ jobs:
       - name: Smoke-test the built package on Node 20
         run: |
           node --version
-          # CJS entry: require the build and assert the public API is present.
-          node -e "const m = require('./dist/index.cjs'); if (typeof m.WhatsAppClient !== 'function') { throw new Error('CJS: WhatsAppClient missing'); } new m.WhatsAppClient({ accessToken: 't', phoneNumberId: 'p' }); console.log('CJS load OK on Node', process.version);"
-          # ESM entry: dynamic import and the same assertion.
-          node --input-type=module -e "import('./dist/index.js').then((m) => { if (typeof m.WhatsAppClient !== 'function') { throw new Error('ESM: WhatsAppClient missing'); } new m.WhatsAppClient({ accessToken: 't', phoneNumberId: 'p' }); console.log('ESM load OK on Node', process.version); });"
-
+          # CJS: require every entry point and assert its public API.
+          node -e "
+          const assert = require('node:assert');
+          const index = require('./dist/index.cjs');
+          const web = require('./dist/web.cjs');
+          const testing = require('./dist/testing.cjs');
+          assert.strictEqual(typeof index.WhatsAppClient, 'function');
+          assert.strictEqual(typeof index.createWebhookHandler, 'function');
+          new index.WhatsAppClient({ accessToken: 't', phoneNumberId: 'p' });
+          assert.strictEqual(typeof web.createWebhookHandler, 'function');
+          assert.strictEqual(typeof web.verifySignatureAsync, 'function');
+          assert.strictEqual(typeof testing.signWebhookBody, 'function');
+          assert.strictEqual(typeof testing.buildWebhookPayload, 'function');
+          assert.strictEqual(typeof testing.createTestRequest, 'function');
+          console.log('CJS load OK on Node', process.version);
+          "
+          # ESM: dynamic import of every entry point, same assertions.
+          node --input-type=module -e "
+          import assert from 'node:assert';
+          const index = await import('./dist/index.js');
+          const web = await import('./dist/web.js');
+          const testing = await import('./dist/testing.js');
+          assert.strictEqual(typeof index.WhatsAppClient, 'function');
+          assert.strictEqual(typeof index.createWebhookHandler, 'function');
+          new index.WhatsAppClient({ accessToken: 't', phoneNumberId: 'p' });
+          assert.strictEqual(typeof web.createWebhookHandler, 'function');
+          assert.strictEqual(typeof web.verifySignatureAsync, 'function');
+          assert.strictEqual(typeof testing.signWebhookBody, 'function');
+          assert.strictEqual(typeof testing.buildWebhookPayload, 'function');
+          assert.strictEqual(typeof testing.createTestRequest, 'function');
+          console.log('ESM load OK on Node', process.version);
+          "
+          # Signed round trip through the built files (CJS and ESM builds).
+          node -e "
+          const assert = require('node:assert');
+          const { createWebhookHandler } = require('./dist/web.cjs');
+          const { buildWebhookPayload, createTestRequest } = require('./dist/testing.cjs');
+          (async () => {
+            const seen = [];
+            const handler = createWebhookHandler({ appSecrets: 's3cret' });
+            handler.on('message', ({ message }) => { seen.push(message.id); });
+            const ok = await handler.handleRequest(await createTestRequest({ payload: buildWebhookPayload('text'), secret: 's3cret' }));
+            const bad = await handler.handleRequest(await createTestRequest({ payload: buildWebhookPayload('text'), secret: 'wrong' }));
+            assert.strictEqual(ok.status, 200);
+            assert.strictEqual(bad.status, 401);
+            assert.strictEqual(seen.length, 1);
+            console.log('CJS signed round trip OK on Node', process.version);
+          })();
+          "
+          node --input-type=module -e "
+          import assert from 'node:assert';
+          import { createWebhookHandler } from './dist/web.js';
+          import { buildWebhookPayload, createTestRequest } from './dist/testing.js';
+          const seen = [];
+          const handler = createWebhookHandler({ appSecrets: 's3cret' });
+          handler.on('message', ({ message }) => { seen.push(message.id); });
+          const ok = await handler.handleRequest(await createTestRequest({ payload: buildWebhookPayload('text'), secret: 's3cret' }));
+          const bad = await handler.handleRequest(await createTestRequest({ payload: buildWebhookPayload('text'), secret: 'wrong' }));
+          assert.strictEqual(ok.status, 200);
+          assert.strictEqual(bad.status, 401);
+          assert.strictEqual(seen.length, 1);
+          console.log('ESM signed round trip OK on Node', process.version);
+          "
+  edge-deno:
+    name: 'Edge runtime: Deno'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm run build
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+      - name: Run edge check on Deno
+        run: deno run --allow-read scripts/edge-check.mjs
+  edge-bun:
+    name: 'Edge runtime: Bun'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm run build
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Run edge check on Bun
+        run: bun scripts/edge-check.mjs
+  edge-workerd:
+    name: 'Edge runtime: Cloudflare workerd'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            examples/cloudflare-workers/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm run build
+      - name: Install worker example dependencies
+        run: pnpm --dir examples/cloudflare-workers install --frozen-lockfile
+      - name: Test in workerd
+        run: pnpm --dir examples/cloudflare-workers test
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest

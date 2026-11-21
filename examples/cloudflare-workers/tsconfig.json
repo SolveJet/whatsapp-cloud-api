@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "paths": {
+      "@solvejet/whatsapp-cloud-api/web": ["../../dist/web.d.ts"],
+      "@solvejet/whatsapp-cloud-api/testing": ["../../dist/testing.d.ts"]
+    },
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers"]
+  },
+  "include": ["src", "test"]
+}

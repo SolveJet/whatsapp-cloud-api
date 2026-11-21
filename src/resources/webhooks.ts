@@ -13,102 +13,33 @@
  */
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { types } from 'node:util';
 import { WhatsAppWebhookError } from '../errors.js';
 import type {
-  IncomingMessage,
-  MessageStatus,
   ParsedWebhook,
-  ParseWebhookOptions,
   WebhookHandlerConfig,
-  WebhookPayload,
   WebhookRawBody,
-  WebhookValue,
+  WebhookVerificationResult,
 } from '../types/webhooks.js';
+import {
+  assertBodySize,
+  decodeBody,
+  extractMessages,
+  extractStatuses,
+  isMessageEvent,
+  isNonEmptyString,
+  isStatusEvent,
+  parseWebhook,
+  resolveMaxBodyBytes,
+  toHashable,
+  warnUnsignedOnce,
+} from './webhook-core.js';
 
-/** Result of the GET verification handshake. */
-export interface WebhookVerificationResult {
-  /** HTTP status code to return: `200` on success, `403` otherwise. */
-  statusCode: number;
-  /** Response body: the raw challenge on success, otherwise `Forbidden`. */
-  body: string;
-}
+export { extractMessages, extractStatuses, isMessageEvent, isStatusEvent, parseWebhook };
+
+export type { WebhookVerificationResult };
 
 /** Prefix Meta uses on the `X-Hub-Signature-256` header value. */
 const SIGNATURE_PREFIX = 'sha256=';
-
-/**
- * Normalizes a raw request body to something `createHmac` can hash without any
- * re-encoding: strings and byte arrays pass through, an `ArrayBuffer` is viewed
- * as bytes. Returns `undefined` for any other input type.
- */
-const toHashable = (body: unknown): string | Uint8Array | undefined => {
-  if (typeof body === 'string' || types.isUint8Array(body)) {
-    return body;
-  }
-  if (types.isArrayBuffer(body)) {
-    return new Uint8Array(body);
-  }
-  return undefined;
-};
-
-/**
- * Decodes a raw body to text. `ignoreBOM: true` keeps a leading byte-order mark
- * in the output instead of silently dropping it, so the decoded text always
- * reflects the bytes that were signed (and `JSON.parse` then rejects it).
- * Returns `undefined` for an unsupported input type.
- */
-const decodeBody = (body: unknown): string | undefined => {
-  const hashable = toHashable(body);
-  if (hashable === undefined || typeof hashable === 'string') {
-    return hashable;
-  }
-  return new TextDecoder('utf-8', { ignoreBOM: true }).decode(hashable);
-};
-
-/** Meta's documented maximum webhook payload size: 3 MiB. */
-const DEFAULT_MAX_BODY_BYTES = 3 * 1024 * 1024;
-
-/** Resolves and validates a `maxBodyBytes` option. */
-const resolveMaxBodyBytes = (option: unknown): number | false => {
-  if (option === undefined) {
-    return DEFAULT_MAX_BODY_BYTES;
-  }
-  if (option === false) {
-    return false;
-  }
-  if (typeof option !== 'number' || !Number.isSafeInteger(option) || option < 1) {
-    throw new WhatsAppWebhookError('maxBodyBytes must be a positive integer or false.');
-  }
-  return option;
-};
-
-/**
- * Throws when a string or byte body is larger than `limit` bytes. Other input
- * types (already parsed objects) have no byte size and are not checked.
- */
-const assertBodySize = (body: unknown, limit: number | false): void => {
-  if (limit === false) {
-    return;
-  }
-  let size: number;
-  if (typeof body === 'string') {
-    size = Buffer.byteLength(body, 'utf8');
-  } else if (types.isUint8Array(body) || types.isArrayBuffer(body)) {
-    size = body.byteLength;
-  } else {
-    return;
-  }
-  if (size > limit) {
-    throw new WhatsAppWebhookError(
-      `Webhook body of ${size} bytes exceeds the maximum of ${limit} bytes.`,
-    );
-  }
-};
-
-/** True for a string with at least one character. */
-const isNonEmptyString = (value: unknown): value is string =>
-  typeof value === 'string' && value.length > 0;
 
 /**
  * Constant-time string comparison. Returns `false` immediately when the two
@@ -191,19 +122,21 @@ export const verifyWebhookQuery = (
  * @param rawBody - The raw request body: a string, `Uint8Array` (including
  *   `Buffer`) or `ArrayBuffer`. Any other type yields `false`.
  * @param signatureHeader - The `X-Hub-Signature-256` header value, if present.
- * @param appSecret - The App Secret used to compute the expected signature.
- * @returns `true` only when the signature is present, well-formed, and matches.
- *   Returns `false` when `appSecret` is not a non-empty string, so an empty key
- *   can never validate a signature.
+ * @param appSecret - The App Secret used to compute the expected signature, or
+ *   an array of secrets to accept during rotation. Every secret is checked
+ *   (there is no early exit); empty or non-string entries are ignored.
+ * @returns `true` only when the signature is present, well-formed, and matches
+ *   at least one secret. Returns `false` when no usable secret is given, so an
+ *   empty key can never validate a signature.
  */
 export const verifySignature = (
   rawBody: WebhookRawBody,
   signatureHeader: string | undefined,
-  appSecret: string,
+  appSecret: string | readonly string[],
 ): boolean => {
-  if (!isNonEmptyString(appSecret)) {
-    return false;
-  }
+  const secrets: readonly unknown[] = Array.isArray(appSecret)
+    ? (appSecret as readonly unknown[])
+    : [appSecret];
   const hashable = toHashable(rawBody);
   if (hashable === undefined) {
     return false;
@@ -211,144 +144,17 @@ export const verifySignature = (
   if (typeof signatureHeader !== 'string' || !signatureHeader.startsWith(SIGNATURE_PREFIX)) {
     return false;
   }
-  const expected = `${SIGNATURE_PREFIX}${createHmac('sha256', appSecret).update(hashable).digest('hex')}`;
-  return constantTimeEqual(expected, signatureHeader);
-};
-
-/** True when `value` is a non-null, non-array object. */
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-/**
- * Validates the top-level envelope and returns it typed as a
- * {@link WebhookPayload}. Accepts a parsed object or a JSON string (parsed
- * internally). Only the top-level shape is validated (`object` is
- * `whatsapp_business_account` and `entry` is an array); per-message narrowing
- * happens lazily in {@link extractMessages}/{@link extractStatuses} so new Meta
- * message types never break parsing.
- *
- * String and byte bodies larger than `options.maxBodyBytes` (default 3 MiB,
- * Meta's documented maximum) are rejected before parsing.
- *
- * @param body - A parsed webhook object, or its JSON as a string, `Uint8Array`
- *   (including `Buffer`) or `ArrayBuffer`. Byte bodies are decoded as UTF-8.
- * @param options - Optional size limit override.
- * @throws {@link WhatsAppWebhookError} when the body is unparseable or malformed.
- */
-export const parseWebhook = (body: unknown, options: ParseWebhookOptions = {}): WebhookPayload => {
-  assertBodySize(body, resolveMaxBodyBytes(options.maxBodyBytes));
-  let parsed: unknown = body;
-  const text = decodeBody(body);
-  if (text !== undefined) {
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      // The SyntaxError is deliberately not attached as `cause`: its message
-      // embeds a fragment of the (possibly unauthenticated) request body.
-      throw new WhatsAppWebhookError('Webhook body is not valid JSON.');
-    }
-  }
-
-  if (!isRecord(parsed)) {
-    throw new WhatsAppWebhookError('Webhook payload must be an object.');
-  }
-  if (parsed['object'] !== 'whatsapp_business_account') {
-    throw new WhatsAppWebhookError('Webhook payload "object" must be "whatsapp_business_account".');
-  }
-  if (!Array.isArray(parsed['entry'])) {
-    throw new WhatsAppWebhookError('Webhook payload "entry" must be an array.');
-  }
-
-  return parsed as unknown as WebhookPayload;
-};
-
-/** True when a change value carries inbound messages. */
-export const isMessageEvent = (
-  value: WebhookValue,
-): value is WebhookValue & { messages: IncomingMessage[] } => Array.isArray(value.messages);
-
-/** True when a change value carries status updates. */
-export const isStatusEvent = (
-  value: WebhookValue,
-): value is WebhookValue & { statuses: MessageStatus[] } => Array.isArray(value.statuses);
-
-/**
- * Collects each change `value` from `messages` changes across all entries,
- * skipping malformed shapes (non-array `changes`, non-object entries, changes
- * and values). A change is read when its `field` is `messages` or is not a
- * string (hand-built envelopes may omit it); every other field (for example
- * `calls`, whose `statuses` are call events) is ignored.
- */
-const iterateValues = (payload: WebhookPayload): WebhookValue[] => {
-  const values: WebhookValue[] = [];
-  const entries: unknown = payload.entry;
-  if (!Array.isArray(entries)) {
-    return values;
-  }
-  for (const entry of entries as unknown[]) {
-    if (!isRecord(entry) || !Array.isArray(entry['changes'])) {
+  let valid = false;
+  for (const secret of secrets) {
+    if (!isNonEmptyString(secret)) {
       continue;
     }
-    for (const change of entry['changes'] as unknown[]) {
-      if (!isRecord(change)) {
-        continue;
-      }
-      const field = change['field'];
-      if (typeof field === 'string' && field !== 'messages') {
-        continue;
-      }
-      const value = change['value'];
-      if (isRecord(value)) {
-        values.push(value as unknown as WebhookValue);
-      }
+    const expected = `${SIGNATURE_PREFIX}${createHmac('sha256', secret).update(hashable).digest('hex')}`;
+    if (constantTimeEqual(expected, signatureHeader)) {
+      valid = true;
     }
   }
-  return values;
-};
-
-/**
- * Appends the object elements of `source` to `target` with an index loop.
- * Spreading into `push(...source)` throws a `RangeError` for arrays of roughly
- * 125,000 elements or more; non-object elements are skipped.
- */
-const appendObjects = <T>(target: T[], source: readonly unknown[]): void => {
-  for (let index = 0; index < source.length; index += 1) {
-    const item = source[index];
-    if (isRecord(item)) {
-      target.push(item as T);
-    }
-  }
-};
-
-/**
- * Flattens all inbound messages across `entry[].changes[].value` for changes
- * whose `field` is `messages`. Non-object elements are skipped. Returns an
- * empty array when the payload carries none.
- */
-export const extractMessages = (payload: WebhookPayload): IncomingMessage[] => {
-  const messages: IncomingMessage[] = [];
-  for (const value of iterateValues(payload)) {
-    if (isMessageEvent(value)) {
-      appendObjects(messages, value.messages);
-    }
-  }
-  return messages;
-};
-
-/**
- * Flattens all message status updates across `entry[].changes[].value` for
- * changes whose `field` is `messages`. Status values under other fields, such
- * as `calls`, are not message statuses and are ignored. Non-object elements
- * are skipped. Returns an empty array when the payload carries none.
- */
-export const extractStatuses = (payload: WebhookPayload): MessageStatus[] => {
-  const statuses: MessageStatus[] = [];
-  for (const value of iterateValues(payload)) {
-    if (isStatusEvent(value)) {
-      appendObjects(statuses, value.statuses);
-    }
-  }
-  return statuses;
+  return valid;
 };
 
 /**
@@ -381,7 +187,8 @@ const requireConfiguredSecret = (value: unknown, name: string): string => {
  *   {@link WhatsAppWebhookError} instead of silently disabling verification.
  */
 export class WebhookHandler {
-  private readonly appSecret?: string;
+  private readonly appSecrets?: readonly string[];
+  private readonly allowUnsigned: boolean;
   private readonly verifyToken?: string;
   private readonly maxBodyBytes: number | false;
 
@@ -391,8 +198,22 @@ export class WebhookHandler {
    */
   constructor(config: WebhookHandlerConfig = {}) {
     if (Object.hasOwn(config, 'appSecret')) {
-      this.appSecret = requireConfiguredSecret(config.appSecret, 'appSecret');
+      const configured: unknown = config.appSecret;
+      if (Array.isArray(configured)) {
+        if (configured.length === 0) {
+          throw new WhatsAppWebhookError(
+            'WebhookHandler config "appSecret" was provided as an empty array. ' +
+              'Omit the key to disable it, or check the environment variable it comes from.',
+          );
+        }
+        this.appSecrets = (configured as unknown[]).map((secret) =>
+          requireConfiguredSecret(secret, 'appSecret'),
+        );
+      } else {
+        this.appSecrets = [requireConfiguredSecret(configured, 'appSecret')];
+      }
     }
+    this.allowUnsigned = config.allowUnsigned === true;
     if (Object.hasOwn(config, 'verifyToken')) {
       this.verifyToken = requireConfiguredSecret(config.verifyToken, 'verifyToken');
     }
@@ -421,10 +242,10 @@ export class WebhookHandler {
    * @param signatureHeader - The `X-Hub-Signature-256` header value.
    */
   isValid(rawBody: WebhookRawBody, signatureHeader: string | undefined): boolean {
-    if (this.appSecret === undefined) {
+    if (this.appSecrets === undefined) {
       return false;
     }
-    return verifySignature(rawBody, signatureHeader, this.appSecret);
+    return verifySignature(rawBody, signatureHeader, this.appSecrets);
   }
 
   /**
@@ -436,10 +257,10 @@ export class WebhookHandler {
    * @throws {@link WhatsAppWebhookError} when verification fails.
    */
   verifyOrThrow(rawBody: WebhookRawBody, signatureHeader: string | undefined): void {
-    if (this.appSecret === undefined) {
+    if (this.appSecrets === undefined) {
       return;
     }
-    if (!verifySignature(rawBody, signatureHeader, this.appSecret)) {
+    if (!verifySignature(rawBody, signatureHeader, this.appSecrets)) {
       throw new WhatsAppWebhookError('Webhook signature verification failed.');
     }
   }
@@ -462,6 +283,9 @@ export class WebhookHandler {
   parse(rawBody: WebhookRawBody, signatureHeader?: string): ParsedWebhook {
     assertBodySize(rawBody, this.maxBodyBytes);
     this.verifyOrThrow(rawBody, signatureHeader);
+    if (this.appSecrets === undefined && !this.allowUnsigned) {
+      warnUnsignedOnce();
+    }
     const text = decodeBody(rawBody);
     if (text === undefined) {
       throw new WhatsAppWebhookError('Webhook body must be a string, Uint8Array or ArrayBuffer.');

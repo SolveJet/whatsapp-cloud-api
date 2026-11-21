@@ -1,11 +1,11 @@
 ---
 title: 'WhatsApp Cloud API webhook in Hono with signature verification'
-description: 'A Hono handler for the WhatsApp Cloud API webhook: read the raw body with c.req.arrayBuffer(), verify X-Hub-Signature-256, answer the challenge.'
+description: 'A Hono route for the WhatsApp Cloud API webhook: createWebhookHandler and handleRequest verify X-Hub-Signature-256 and answer the challenge.'
 sidebar:
   order: 7
 ---
 
-In Hono, read the body with `c.req.arrayBuffer()` before anything parses it. `c.req.json()` would lose the original bytes. The handler accepts the resulting `ArrayBuffer` directly. The GET route passes `c.req.query()` to `handleVerification`.
+In Hono, hand the underlying fetch `Request` (`c.req.raw`) to `handleRequest`. It answers the GET handshake and the signed POST, and reads the raw bytes itself, so do not call `c.req.json()` first.
 
 {{include examples/hono/server.ts}}
 

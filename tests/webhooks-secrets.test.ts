@@ -19,7 +19,7 @@ describe('verifySignature with a bad secret', () => {
     expect(verifySignature(rawBody, sign(rawBody, ''), '')).toBe(false);
   });
 
-  it.each([[undefined], [null], [42], [{}], [['secret']], [Buffer.from('secret')]])(
+  it.each([[undefined], [null], [42], [{}], [Buffer.from('secret')]])(
     'returns false without throwing for a non-string secret (%#)',
     (secret) => {
       const header = sign(rawBody, 'secret');
@@ -29,6 +29,43 @@ describe('verifySignature with a bad secret', () => {
   );
 });
 
+describe('verifySignature with an array of secrets', () => {
+  it('accepts a signature made with either secret', () => {
+    const secrets = ['old-secret', 'new-secret'];
+    expect(verifySignature(rawBody, sign(rawBody, 'old-secret'), secrets)).toBe(true);
+    expect(verifySignature(rawBody, sign(rawBody, 'new-secret'), secrets)).toBe(true);
+  });
+  it('rejects a signature made with a secret that is not in the array', () => {
+    expect(verifySignature(rawBody, sign(rawBody, 'other'), ['old-secret', 'new-secret'])).toBe(
+      false,
+    );
+  });
+  it('fails closed for an empty array', () => {
+    expect(verifySignature(rawBody, sign(rawBody, 'secret'), [])).toBe(false);
+  });
+  it('fails closed when the only entries are empty strings', () => {
+    expect(verifySignature(rawBody, sign(rawBody, ''), [''])).toBe(false);
+    expect(verifySignature(rawBody, sign(rawBody, ''), ['', ''])).toBe(false);
+  });
+  it('ignores an empty or non-string entry but still accepts a valid secret', () => {
+    const header = sign(rawBody, 'secret');
+    expect(verifySignature(rawBody, header, ['', 'secret'])).toBe(true);
+    expect(verifySignature(rawBody, header, [42, 'secret'] as never)).toBe(true);
+    expect(verifySignature(rawBody, sign(rawBody, ''), ['', 'secret'])).toBe(false);
+  });
+});
+describe('WebhookHandler with an array of app secrets', () => {
+  it('validates a delivery signed with either secret', () => {
+    const handler = new WebhookHandler({ appSecret: ['old-secret', 'new-secret'] });
+    expect(handler.isValid(rawBody, sign(rawBody, 'old-secret'))).toBe(true);
+    expect(handler.isValid(rawBody, sign(rawBody, 'new-secret'))).toBe(true);
+    expect(handler.isValid(rawBody, sign(rawBody, 'other'))).toBe(false);
+  });
+  it('throws for an empty array or an array containing an empty string', () => {
+    expect(() => new WebhookHandler({ appSecret: [] })).toThrow(WhatsAppWebhookError);
+    expect(() => new WebhookHandler({ appSecret: ['ok', ''] })).toThrow(WhatsAppWebhookError);
+  });
+});
 describe('verify token handshake with a bad expected token', () => {
   const forbidden = { statusCode: 403, body: 'Forbidden' };
 

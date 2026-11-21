@@ -227,13 +227,29 @@ export interface InteractiveIncomingMessage extends IncomingMessageBase {
   type: 'interactive';
   interactive: {
     /** The kind of interactive reply received. */
-    type: 'button_reply' | 'list_reply' | 'nfm_reply';
+    type: 'button_reply' | 'list_reply' | 'nfm_reply' | 'product' | 'call_permission_reply';
     /** Present when `type` is `button_reply`. */
     button_reply?: { id: string; title: string };
     /** Present when `type` is `list_reply`. */
     list_reply?: { id: string; title: string; description?: string };
     /** Present when `type` is `nfm_reply` (e.g. an address-message submission). */
     nfm_reply?: InteractiveNfmReply;
+    /** Present when `type` is `product`, a reply about a product from a product message. */
+    product?: {
+      retailer_id: string;
+      title?: string;
+      description?: string;
+      currency_code?: string;
+      price_amount?: number | string;
+      sale_price_amount?: number | string;
+      url?: string;
+    };
+    /** Present when `type` is `call_permission_reply`, the user's answer to a call permission request. */
+    call_permission_reply?: {
+      response: string;
+      expiration_timestamp?: number | string;
+      response_source?: string;
+    };
   };
 }
 
@@ -287,6 +303,60 @@ export interface SystemIncomingMessage extends IncomingMessageBase {
     previous_parent_user_id?: string;
   };
 }
+/** One product line of an {@link OrderIncomingMessage}. */
+export interface IncomingOrderProductItem {
+  /** The product ID in the catalog. */
+  product_retailer_id: string;
+  /** The quantity ordered. */
+  quantity: number | string;
+  /** The unit price. */
+  item_price: number | string;
+  /** The ISO 4217 currency code. */
+  currency: string;
+}
+
+/** An order placed from a catalog or product list message. */
+export interface OrderIncomingMessage extends IncomingMessageBase {
+  type: 'order';
+  order: {
+    /** The catalog the ordered products belong to. */
+    catalog_id: string;
+    /** Free text the user added to the order. */
+    text?: string;
+    /** The ordered products. */
+    product_items: IncomingOrderProductItem[];
+  };
+}
+
+/**
+ * A message Meta could not deliver as a supported type. Check `errors` for the
+ * reason (for example error code 131051).
+ */
+export interface UnsupportedIncomingMessage extends IncomingMessageBase {
+  type: 'unsupported';
+  unsupported: { type?: string };
+}
+
+/** A user edited a message they sent earlier. */
+export interface EditIncomingMessage extends IncomingMessageBase {
+  type: 'edit';
+  edit: {
+    /** WAMID of the message that was edited. */
+    original_message_id: string;
+    /** The edited message content; carries its own `type` and type-specific object. */
+    message: { type: string; [key: string]: unknown };
+  };
+}
+
+/** A user deleted a message they sent earlier. */
+export interface RevokeIncomingMessage extends IncomingMessageBase {
+  type: 'revoke';
+  revoke: {
+    /** WAMID of the message that was deleted. */
+    original_message_id: string;
+  };
+}
+
 /**
  * Fallback shape for message types this SDK does not model explicitly.
  *
@@ -326,7 +396,11 @@ export type IncomingMessage =
   | InteractiveIncomingMessage
   | ButtonIncomingMessage
   | ReactionIncomingMessage
-  | SystemIncomingMessage;
+  | SystemIncomingMessage
+  | OrderIncomingMessage
+  | UnsupportedIncomingMessage
+  | EditIncomingMessage
+  | RevokeIncomingMessage;
 
 /** An error entry attached to a failed/warning message status. */
 export interface WebhookMessageError {
@@ -435,15 +509,25 @@ export interface WebhookPayload {
 
 /**
  * A raw webhook request body: a string, a `Uint8Array` (which includes Node's
- * `Buffer`) or an `ArrayBuffer`. Always pass the exact bytes received, never a
+ * byte buffers) or an `ArrayBuffer`. Always pass the exact bytes received, never a
  * re-serialized parsed object.
  */
 export type WebhookRawBody = string | Uint8Array | ArrayBuffer;
 
 /** Configuration for {@link WebhookHandler}. */
 export interface WebhookHandlerConfig {
-  /** App Secret used to verify the `X-Hub-Signature-256` header. */
-  appSecret?: string;
+  /**
+   * App Secret used to verify the `X-Hub-Signature-256` header. Pass an array
+   * to accept several secrets at once, for example the old and new secret
+   * while rotating.
+   */
+  appSecret?: string | readonly string[];
+  /**
+   * Set to `true` to accept unsigned deliveries without the one-time process
+   * warning. Only relevant when no `appSecret` is configured; with a secret
+   * the signature is always required.
+   */
+  allowUnsigned?: boolean;
   /** Verify token used during the GET verification handshake. */
   verifyToken?: string;
   /**
@@ -474,4 +558,12 @@ export interface ParsedWebhook {
   statuses: MessageStatus[];
   /** The full validated payload. */
   raw: WebhookPayload;
+}
+
+/** Result of the GET verification handshake. */
+export interface WebhookVerificationResult {
+  /** HTTP status code to return: `200` on success, `403` otherwise. */
+  statusCode: number;
+  /** Response body: the raw challenge on success, otherwise `Forbidden`. */
+  body: string;
 }

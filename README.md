@@ -86,14 +86,16 @@ pnpm add @solvejet/whatsapp-cloud-api
 
 ## Runtime support
 
-| Runtime            | Status                                                    |
-| ------------------ | --------------------------------------------------------- |
-| Node.js 20         | Verified in CI (built package is imported as ESM and CJS) |
-| Node.js 22, 24     | Verified in CI (lint, typecheck, tests, build)            |
-| Bun, Deno          | Untested                                                  |
-| Cloudflare Workers | Untested                                                  |
+| Runtime            | Status                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------ |
+| Node.js 20         | Verified in CI (built package is imported as ESM and CJS, signed request round trip) |
+| Node.js 22, 24     | Verified in CI (lint, typecheck, tests, build)                                       |
+| Bun                | Verified in CI (`/web` entry runs under Bun)                                         |
+| Deno               | Verified in CI only (`/web` entry runs under Deno)                                   |
+| Cloudflare Workers | Verified in CI in workerd without `nodejs_compat` (`/web` entry)                     |
+| Vercel, Next.js    | Use `handleRequest` with `waitUntil` or `after()`; documented, not run in CI         |
 
-The HTTP client only needs `fetch` and `AbortController`. The webhook helpers import `node:crypto`, so they need a runtime that provides it.
+The HTTP client only needs `fetch` and `AbortController`. The main entry's webhook helpers import `node:crypto`. On runtimes without it, import from `@solvejet/whatsapp-cloud-api/web`, which uses Web Crypto only. See [Edge runtimes](#edge-runtimes).
 
 **Verified against:** Graph API `v26.0`, Meta changelog checked 2026-11-21. Change it with the `apiVersion` option.
 
@@ -325,7 +327,7 @@ Three secrets are involved, and they are not interchangeable:
 - **App Secret:** from your Meta app settings, used to verify `X-Hub-Signature-256`.
 - **Access token:** used to _send_ messages, never for webhooks.
 
-`WebhookHandler` binds the secrets once. `handler.handleVerification(query)` answers the handshake, and `handler.parse(rawBody, signature)` verifies the signature and parses the payload, throwing `WhatsAppWebhookError` when the signature is missing or invalid.
+`createWebhookHandler` is the quickest way to receive webhooks: it does both steps and calls the handlers you register. See [Webhook handler](#webhook-handler). The rest of this section covers the lower-level `WebhookHandler`, which binds the secrets once. `handler.handleVerification(query)` answers the handshake, and `handler.parse(rawBody, signature)` verifies the signature and parses the payload, throwing `WhatsAppWebhookError` when the signature is missing or invalid.
 
 Signature checking is on only when you pass `appSecret`. If you leave the `appSecret` key out, `parse` accepts unsigned bodies, so only do that when something else authenticates the request. If you pass `appSecret` or `verifyToken` with an `undefined` or empty value (for example an unset environment variable), the constructor throws a `WhatsAppWebhookError` instead of quietly turning verification off. `verifySignature` returns `false`, and the verify-token handshake returns `403`, whenever the configured secret is empty.
 
@@ -454,7 +456,94 @@ for (const status of extractStatuses(payload)) {
 
 Return `200` fast and do the work afterwards. Meta retries deliveries, so deduplicate on the message id (`wamid`).
 
-`extractMessages`, `extractStatuses` and `parse` read the `messages` webhook field only. Other fields, such as `calls`, `message_template_status_update` or `account_update`, are not parsed into `messages` or `statuses`. Their payload is still available in `parsed.raw`.
+`extractMessages`, `extractStatuses` and `parse` read the `messages` webhook field only. Other fields, such as `calls`, `message_template_status_update` or `account_update`, are not parsed into `messages` or `statuses`. Their payload is still available in `parsed.raw`. To get typed events for those fields (`call`, `flow`, `template`, `account`, `group`, plus `unknown` for the rest), use `parseWebhookEvents(rawBody)` or [`createWebhookHandler`](#webhook-handler).
+
+### Webhook handler
+
+`createWebhookHandler` answers the handshake, verifies `X-Hub-Signature-256` over the raw body, parses the delivery, skips duplicates and calls your handlers.
+
+```ts
+import { createMemoryDedupe, createWebhookHandler } from '@solvejet/whatsapp-cloud-api';
+
+const webhook = createWebhookHandler({
+  appSecrets: process.env.WHATSAPP_APP_SECRET!, // a string or an array (secret rotation)
+  verifyToken: process.env.WHATSAPP_VERIFY_TOKEN!,
+  dedupe: createMemoryDedupe(),
+});
+
+webhook.on('message', async ({ message, ctx }) => {
+  console.log(ctx.wabaId, message.id, message.type);
+});
+webhook.on('status', ({ status }) => console.log(status.id, status.status));
+```
+
+Pass the raw body to `handleDelivery(rawBody, signatureHeader)` (Express, Fastify) or the whole `Request` to `handleRequest(request)` (Next.js, Hono, Workers, Bun, Deno). `handleVerification(query)` answers the GET handshake. Both delivery methods return the status to send.
+
+Events: `message`, `status`, `error`, `call`, `flow`, `template`, `account`, `group` and `unknown`. Every event has a `ctx` with `wabaId`, `field`, `time`, `metadata` and the matching `contact`. Fields the SDK does not model arrive as `unknown` with the untouched `value`. `parseWebhookEvents(body)` gives the same events without a handler.
+
+| Situation                                         | Status                        |
+| ------------------------------------------------- | ----------------------------- |
+| Missing or wrong signature, or no tenant resolved | `401`                         |
+| Body over `maxBodyBytes` (3 MiB by default)       | `413`                         |
+| Valid signature, body that is not a webhook       | `200`, reported to `onError`  |
+| Valid delivery                                    | `200`                         |
+| A handler threw, `retryOnHandlerError: true`      | `500`                         |
+| Other method on `handleRequest`                   | `405` with `Allow: GET, POST` |
+
+Options:
+
+- `ackMode`: `'after'` (default) runs the handlers before answering. `'before'` answers once the delivery is verified and parsed and runs the handlers in the background. Pass `waitUntil` (option or second argument of `handleRequest`) so serverless platforms keep the invocation alive.
+- `dedupe`: skips events Meta delivered twice. Default keys are `message:<id>` and `status:<id>:<status>`; override with `dedupeKey`. `createMemoryDedupe` is per process, so use your own `WebhookDedupe` when several instances share traffic.
+- `maxEventAgeSeconds`: skips old message and status events.
+- `concurrency` (default 8): events handled at the same time within one delivery.
+- `retryOnHandlerError`: answer `500` when a handler throws so Meta redelivers.
+- `resolveTenant(request)`: pick secrets and verify token per request for several apps.
+- `onError(error, info)`: receives handler errors and invalid envelopes. Defaults to `console.error`.
+- `allowUnsigned`: with no secret configured, accepting unsigned deliveries logs a one-time warning (`WHATSAPP_WEBHOOK_UNSIGNED`). Set `true` to silence it. When secrets are set, the signature is always required.
+
+The `IncomingMessage` union now includes `order`, `unsupported`, `edit` and `revoke` messages. If you check a `switch` on `message.type` for exhaustiveness with a `never` assignment, add the new cases or a `default` branch. `isKnownMessage(message)` narrows a message to the modelled types.
+
+### Edge runtimes
+
+`@solvejet/whatsapp-cloud-api/web` exports the handler, parsers, dedupe and `verifySignatureAsync` without any `node:` import. It verifies signatures with Web Crypto.
+
+```ts
+import { createWebhookHandler } from '@solvejet/whatsapp-cloud-api/web';
+
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const webhook = createWebhookHandler({
+      appSecrets: env.WHATSAPP_APP_SECRET,
+      verifyToken: env.WHATSAPP_VERIFY_TOKEN,
+      ackMode: 'before',
+    });
+    webhook.on('message', ({ message }) => console.log(message.id));
+    return webhook.handleRequest(request, { waitUntil: (promise) => ctx.waitUntil(promise) });
+  },
+};
+```
+
+For `waitUntil`, use `ctx.waitUntil` on Cloudflare, `waitUntil` from `@vercel/functions` or `after()` from `next/server` on Vercel. Long-running servers on Node, Bun and Deno do not need it. [Runtime support](#runtime-support) lists what CI runs.
+
+### Testing your webhook handler
+
+`@solvejet/whatsapp-cloud-api/testing` builds deliveries and signed requests, so you can test handlers in-process.
+
+```ts
+import { createWebhookHandler } from '@solvejet/whatsapp-cloud-api/web';
+import { buildWebhookPayload, createTestRequest } from '@solvejet/whatsapp-cloud-api/testing';
+
+const webhook = createWebhookHandler({ appSecrets: 'test-secret' });
+webhook.on('message', ({ message }) => console.log(message.id));
+
+const request = await createTestRequest({
+  payload: buildWebhookPayload('text'),
+  secret: 'test-secret',
+});
+const response = await webhook.handleRequest(request); // 200
+```
+
+`buildWebhookPayload` kinds: `text`, `status`, `call`, `template_status`, `flow`, `account_update`, `group`. `signWebhookBody(body, secret)` returns the `sha256=<hex>` header value. Both are async-signing helpers that run on Node 20+, Bun, Deno and workerd.
 
 ## More documentation
 

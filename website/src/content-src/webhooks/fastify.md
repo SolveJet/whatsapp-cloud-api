@@ -1,11 +1,11 @@
 ---
 title: 'WhatsApp Cloud API webhook in Fastify with signature verification'
-description: 'A Fastify route for the WhatsApp Cloud API webhook: a buffer content-type parser keeps the raw body, then verify X-Hub-Signature-256 and parse.'
+description: 'A Fastify route for the WhatsApp Cloud API webhook: a buffer content-type parser keeps the raw body, then handleDelivery verifies X-Hub-Signature-256 and dispatches events.'
 sidebar:
   order: 8
 ---
 
-Fastify parses JSON before your handler runs, so replace the `application/json` parser with one that uses `parseAs: 'buffer'`. The route then receives the raw `Buffer`, which `handler.isValid` and `handler.parse` take as is.
+Fastify parses JSON before your handler runs, so replace the `application/json` parser with one that uses `parseAs: 'buffer'`. The route then receives the raw `Buffer`, which you pass to `handleDelivery` together with the `x-hub-signature-256` header. The route answers with the status it returns.
 
 {{include examples/fastify/server.ts}}
 
