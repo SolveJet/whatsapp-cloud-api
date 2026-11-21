@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-21
+
+### Added
+
+- `createWebhookHandler`: an event-driven webhook handler. `handleVerification` answers the handshake, `handleDelivery(rawBody, signature)` and `handleRequest(request)` verify `X-Hub-Signature-256` over the raw bytes, parse the delivery and call handlers registered with `on`. Options: `appSecrets` (one secret or an array for rotation), `verifyToken`, `resolveTenant`, `allowUnsigned`, `maxBodyBytes`, `maxEventAgeSeconds`, `dedupe`, `dedupeKey`, `ackMode`, `waitUntil`, `retryOnHandlerError`, `concurrency` and `onError`.
+- Typed events and `parseWebhookEvents`: `message`, `status`, `error`, `call`, `flow`, `template`, `account`, `group` and `unknown`, each with a `ctx` (WABA ID, field, time, metadata, matching contact). Fields the SDK does not model arrive as `unknown` with the untouched `value`.
+- `createMemoryDedupe` and the `WebhookDedupe` interface, with default keys `message:<id>` and `status:<id>:<status>`.
+- `@solvejet/whatsapp-cloud-api/web` entry point with the handler, parsers, dedupe and `verifySignatureAsync`. It uses Web Crypto and imports nothing from `node:*`, so it runs on Cloudflare Workers, Deno, Bun, Vercel Edge and Node 20+.
+- `@solvejet/whatsapp-cloud-api/testing` entry point: `signWebhookBody`, `buildWebhookPayload` and `createTestRequest` for testing handlers in-process.
+- Incoming message types `order`, `unsupported`, `edit` and `revoke`, and `interactive.type` values `product` and `call_permission_reply`.
+- Helpers `isKnownMessage`, `getUserKey` and `isStale`.
+- `verifySignature` and `WebhookHandler` accept an array of app secrets, so an old and a new secret can both be valid during rotation.
+- `allowUnsigned` option for `WebhookHandler` and `createWebhookHandler`.
+- CI jobs that run the built web entry on Deno, Bun and Cloudflare workerd, and a Node 20 smoke test of every entry point as ESM and CJS.
+- Examples rewritten on `createWebhookHandler`, an edge-runtime example for Cloudflare Workers, a lower-level example, and documentation pages for the handler, edge runtimes and testing.
+
+### Changed
+
+- The `IncomingMessage` union has new members (`order`, `unsupported`, `edit`, `revoke`), and `interactive.type` is wider. Code that checks a `switch` on `message.type` for exhaustiveness with a `never` assignment no longer compiles until it handles the new cases or has a `default` branch.
+- Accepting a webhook body without an `appSecret` now emits a one-time process warning (`WHATSAPP_WEBHOOK_UNSIGNED`, or `console.warn` where `process.emitWarning` is missing). Behaviour is otherwise unchanged. Set `allowUnsigned: true` to silence it.
+- `package.json` `exports` uses separate `types` conditions for `import` and `require` for every entry point, and adds `./web` and `./testing`.
+
+### Deprecated
+
+- Accepting unsigned deliveries without `allowUnsigned: true`. Version 2.0 will require an explicit opt-out; set `appSecret` (or `appSecrets`) now.
+
 ## [1.3.2] - 2026-11-21
 
 ### Added
@@ -179,7 +205,8 @@ as stable:
 - Interactive button and list headers now accept the structured `InteractiveHeader` type in addition to a plain string (backward compatible).
 - Removed stale "omitted" notes from the contact types now that the full contacts object is modeled.
 
-[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.3.2...HEAD
+[Unreleased]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.3.2...v1.4.0
 [1.3.2]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/SolveJet/whatsapp-cloud-api/compare/v1.2.1...v1.3.0
